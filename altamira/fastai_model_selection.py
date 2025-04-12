@@ -71,7 +71,7 @@ for sp in df_selection['SP'].unique():
             test_mse = mse(test_preds[0], tensor(df_test['actual_duration'].values)).item()
 
             # Save the results of the model selection       
-            mse_test.append([sp,project,layers,mse])
+            mse_test.append([sp,project,layers,test_mse])
 
 # Save the results of the model selection
 pd.DataFrame(mse_test,columns=['SP','Project','layers','MSE']).to_csv(f"model_selection_fastai.csv",index=False)
