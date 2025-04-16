@@ -6,22 +6,35 @@ import sys
 import os
 import time
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-from xgboost.sklearn import XGBRegressor
 from sklearn.svm import SVR
 from sklearn.linear_model import ElasticNet
 from interpret.glassbox import ExplainableBoostingRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBRegressor
+from fastai.tabular.all import *
+from fastai.metrics import mse
+from sklearn.model_selection import train_test_split
 
+import argparse
 
-if len(sys.argv) != 3:
-    sys.exit("Wrong number of arguments, e.g., <<python model_selection.py <model_name> <n_sp> <lhs_trial> >>")
-else:
-    mdl_name=sys.argv[1]
-    n_sp=int(sys.argv[2])
-    n_trial=int(sys.argv[3])
-           
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Model selection script for Altamira')
+
+# Arguments
+parser.add_argument('model_name', type=str, choices=['rf', 'xgb', 'ebm', 'sv', 'en', 'fastai'],
+                    help='Short name of the model (rf, xgb, ebm, sv, en, fastai)')
+parser.add_argument('lhs_trial', type=int, help='Index of the LHS trial')
+parser.add_argument('n_sp', type=int, help='Index of the SP (subset of projects)')
+args = parser.parse_args()
+
+# Get parsed values
+mdl_name = args.model_name
+n_trial = args.lhs_trial
+n_sp = args.n_sp
+
 # Seed for reproducibility
 seed=112358
 
@@ -35,75 +48,120 @@ elif mdl_name == 'sv':
     mdl = SVR
 elif mdl_name == 'en':
     mdl = ElasticNet
+elif mdl_name == 'fastai':
+    mdl = tabular_learner
 else:
     sys.exit(f"Model {mdl_name} is not recognized.")
 
 # Hyperparameters for the models
-if os.path.exists(os.path.join('./model_selection',f"lhs_{mdl_name}_parameters.csv")):
-    df_param=pd.read_csv(os.path.join('./model_selection',f"lhs_{mdl_name}_parameters.csv"))
+if os.path.exists(os.path.join('./model_selection',f"lhs{n_trial}_{mdl_name}_parameters.csv")):
+    df_param=pd.read_csv(os.path.join('./model_selection',f"lhs{n_trial}_{mdl_name}_parameters.csv"),index_col=0)
 else:
-    sys.exit(f"File lhs_{mdl_name}_parameters.csv not found in ./model_selection folder.")
+    sys.exit(f"File lhs{n_trial}_{mdl_name}_parameters.csv not found in ./model_selection folder.")
 
 # Projects dataset for model selection
-df_projects=pd.read_csv(os.path.join('./results','model_selection_projects.csv'))
+df_projects=pd.read_csv(os.path.join('./montecarlo','model_selection_projects.csv'))
 df_selection=df_projects[df_projects['ModelSelection']] # Filter ModelSelection True
 sp_values=df_selection['SP'].unique() # Unique values of SP
-
-# Set the hyperparameters to explore
-param_keys=list(df_param.columns)
 
 # Test the combinations of hyperparameters over a subset of projects SPj
 mse_test = []
 for project in df_selection.loc[df_selection['SP'] == sp_values[n_sp],'Project']:
 
     # Read the simulation data
-    df = pd.read_csv(os.path.join('./results',f"{project}_simulation_e1.csv"),index_col=0)
+    df = pd.read_csv(os.path.join('./montecarlo',f"{project}_simulation_e1.csv"),index_col=0)
 
     # Read test runs
-    df_runs= pd.read_csv(os.path.join('./results',"test_runs.csv"))
+    df_runs= pd.read_csv(os.path.join('./montecarlo',"test_runs.csv"))
 
-    # Training data
+    # Training and testing data
     df_train=df.loc[df.index.difference(df_runs['test_runs'].values)]
-    Xtrain=df_train.iloc[:,:32] # 32 features correspondint to the 32 activities of the project
-    Ytrain=df_train.iloc[:,-1] # Last column is the objective function: the actual duration of the project
-    
-    # Testing data
     df_test=df.loc[df_runs['test_runs'].values]
-    Xtest=df_test.iloc[:,:32]
-    Ytest=df_test.iloc[:,-1]
+    if mdl_name == 'fastai':
+        # Fastai requires a different approach for training and testing data
+        splits = RandomSplitter(valid_pct=0.1)(range_of(df_train)) # We assign the validation set to 10% of the training data
+        to = TabularPandas(df_train, 
+                procs=[Categorify,FillMissing,Normalize],
+                cat_names = [],
+                cont_names = [ col for col in df_train.columns if col.startswith('duration')],
+                y_names='actual_duration',
+                splits=splits)
+        # Create DataLoaders, 'dls' will have 'train' and 'valid' DataLoaders
+        dls = to.dataloaders(bs=64) # Try other batch sizes?
+    else:
+        Xtrain=df_train.iloc[:,:32] # 32 features correspondint to the 32 activities of the project
+        Ytrain=df_train.iloc[:,-1] # Last column is the objective function: the actual duration of the project
+        Xtest=df_test.iloc[:,:32]
+        Ytest=df_test.iloc[:,-1]
 
     # Test all combinations of hiperparameters
     for i in df_param.index:
 
+#        print(f"Running {mdl_name} for {project} with {i}-LHShyperparameters")
+
+        # For comuting the run time
         start_time = time.time()
 
-        # Train the model
-        if mdl_name in ['rf','xgb','ebm']:
-            model = mdl(n_jobs=-1,random_state=seed)
-        elif mdl_name in ['en']:
-            model = mdl(random_state=seed)
+        # Load the hyperparameters
+        hyperparameters = df_param.iloc[[i]].to_dict(orient='records')[0] # Using `.loc[i, :]` returns a Series, which may upcast ints to floats — use `.iloc[[i]]` for dtype-safe row extraction.
+
+        if mdl_name in ['rf','xgb','ebm','en']: # Fix the seed when it's possibel
+            hyperparameters['random_state'] = seed
+        # SV is a deterministic model, so no need to set the random state
+
+        if mdl_name in ['rf','xgb','ebm']: # Use all the cores for parallel processing in ensemble models
+            hyperparameters['n_jobs'] = -1
+
+        if mdl_name == 'xgb': # Set the learning rate for XGBoost according to the number of estimators
+            hyperparameters['learning_rate'] = 1/np.sqrt(hyperparameters['n_estimators'])
+
+        # Load and train the model
+        if mdl_name == 'fastai':
+            # Fastai requires a different approach for model creation
+            layers=[]
+            layers.append(int((hyperparameters['layer1']//5)*5)) # Round to the nearest multiple of 5
+            layers.append(int((hyperparameters['layer2']//5)*5)) # Round to the nearest multiple of 5
+            epochs = 100
+            model = mdl(
+                dls,
+                layers=layers,
+                metrics=mse,
+                #config=tabular_config(ps=hyperparameters['ps']), # Dropout for embedding layers
+                wd=hyperparameters['wd'], # Weight decay
+                loss_func=MSELossFlat(), # Mean Squared Error as regression loss
+                cbs=[EarlyStoppingCallback(monitor='valid_loss', patience=10)]
+            )
+            # Find the best learning rate
+            lr_suggestion = model.lr_find(show_plot=False)
+            # and train the model
+            model.fit_one_cycle(epochs, lr_max=lr_suggestion)
+            # Evaluate the model on the test dataset
+            test_dl = model.dls.test_dl(df_test)
+            test_preds = model.get_preds(dl=test_dl)
+            test_mse = mse(test_preds[0], tensor(df_test['actual_duration'].values)).item()
+
         else:
-            model=mdl()
-        model.set_params(**{df_param.loc[i,:].to_dict()})
+            model=mdl(**hyperparameters)
+            # Fit the model with scaled data for all features
+            scaler = StandardScaler()   
+            Xtrain_scaled = scaler.fit_transform(Xtrain)
+            Xtest_scaled = scaler.transform(Xtest)
+            model.fit(Xtrain_scaled,Ytrain)
+            Ypred=model.predict(Xtest_scaled)            
+            # Calculate the MSE
+            test_mse = mean_squared_error(Ytest, Ypred)
 
-        # Fit the model with scaled data for all features
-        scaler = StandardScaler()   
-        Xtrain_scaled = scaler.fit_transform(Xtrain)
-        Xtest_scaled = scaler.transform(Xtest)
-        model.fit(Xtrain_scaled,Ytrain)
-        Ypred=model.predict(Xtest_scaled)
-        
-        # Calculate the MSE
-        mse = mean_squared_error(Ytest, Ypred)
-
+        # Elapsed time for the test run
         end_time = time.time()
         elapsed_time = round(end_time - start_time,0) # in seconds
 
         # Update the test run
-        mse_test.append([sp_values[n_sp],project] + df_param.loc[i,:].values.tolist() + [mse,elapsed_time])
+        #mse_test.append([sp_values[n_sp],project] + df_param.loc[i,:].values.tolist() + [mse,elapsed_time])
+        mse_test.append([sp_values[n_sp],project,i] + [df_param.loc[i,c] for c in df_param.columns] + [test_mse,elapsed_time])
 
 # Save the results of the model selection
-pd.DataFrame(mse_test,columns=['SP','Project'] + df_param.columns.tolist() + ['MSE','time']).to_csv(f"lhs{n_trial}_model_selection_{mdl_name}_{n_sp}.csv",index=False)
+#pd.DataFrame(mse_test,columns=['SP','Project'] + df_param.columns.tolist() + ['MSE','time']).to_csv(f"lhs{n_trial}_model_selection_{mdl_name}_{n_sp}.csv",index=False)
+pd.DataFrame(mse_test,columns=['SP','Project','lhs'] + df_param.columns.tolist() + ['MSE','time']).to_csv(f"./model_selection/lhs{n_trial}_model_selection_{mdl_name}_{n_sp}.csv",index=False)
 
 
 
