@@ -3,5 +3,6 @@
 /references
 /lightning_logs
 /saved_models
+/models
 .pt_tmp
 __pycache__

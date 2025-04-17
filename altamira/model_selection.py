@@ -38,6 +38,10 @@ n_sp = args.n_sp
 # Seed for reproducibility
 seed=112358
 
+# Path for the results 
+path_model_selection='./model_selection'
+path_montecarlo='./montecarlo'
+
 if mdl_name == 'rf':
     mdl = RandomForestRegressor
 elif mdl_name == 'xgb':
@@ -54,25 +58,26 @@ else:
     sys.exit(f"Model {mdl_name} is not recognized.")
 
 # Hyperparameters for the models
-if os.path.exists(os.path.join('./model_selection',f"lhs{n_trial}_{mdl_name}_parameters.csv")):
-    df_param=pd.read_csv(os.path.join('./model_selection',f"lhs{n_trial}_{mdl_name}_parameters.csv"),index_col=0)
+if os.path.exists(os.path.join(path_model_selection,f"lhs{n_trial}_{mdl_name}_parameters.csv")):
+    df_param=pd.read_csv(os.path.join(path_model_selection,f"lhs{n_trial}_{mdl_name}_parameters.csv"),index_col=0)
 else:
-    sys.exit(f"File lhs{n_trial}_{mdl_name}_parameters.csv not found in ./model_selection folder.")
+    sys.exit(f"File lhs{n_trial}_{mdl_name}_parameters.csv not found in {path_model_selection} folder.")
 
 # Projects dataset for model selection
-df_projects=pd.read_csv(os.path.join('./montecarlo','model_selection_projects.csv'))
+df_projects=pd.read_csv(os.path.join(path_montecarlo,'model_selection_projects.csv'))
 df_selection=df_projects[df_projects['ModelSelection']] # Filter ModelSelection True
 sp_values=df_selection['SP'].unique() # Unique values of SP
+sp_values.sort()
 
 # Test the combinations of hyperparameters over a subset of projects SPj
 mse_test = []
 for project in df_selection.loc[df_selection['SP'] == sp_values[n_sp],'Project']:
 
     # Read the simulation data
-    df = pd.read_csv(os.path.join('./montecarlo',f"{project}_simulation_e1.csv"),index_col=0)
+    df = pd.read_csv(os.path.join(path_montecarlo,f"{project}_simulation_e1.csv"),index_col=0)
 
-    # Read test runs
-    df_runs= pd.read_csv(os.path.join('./montecarlo',"test_runs.csv"))
+    # Read test fold
+    df_runs= pd.read_csv(os.path.join(path_montecarlo,"test_runs.csv"))
 
     # Training and testing data
     df_train=df.loc[df.index.difference(df_runs['test_runs'].values)]
@@ -89,10 +94,10 @@ for project in df_selection.loc[df_selection['SP'] == sp_values[n_sp],'Project']
         # Create DataLoaders, 'dls' will have 'train' and 'valid' DataLoaders
         dls = to.dataloaders(bs=64) # Try other batch sizes?
     else:
-        Xtrain=df_train.iloc[:,:32] # 32 features correspondint to the 32 activities of the project
-        Ytrain=df_train.iloc[:,-1] # Last column is the objective function: the actual duration of the project
-        Xtest=df_test.iloc[:,:32]
-        Ytest=df_test.iloc[:,-1]
+        Xtrain=df_train.loc[:,[ col for col in df_train.columns if col.startswith('duration')]] 
+        Ytrain=df_train['actual_duration']
+        Xtest=df_test.loc[:,[ col for col in df_train.columns if col.startswith('duration')]] 
+        Ytest=df_test['actual_duration']
 
     # Test all combinations of hiperparameters
     for i in df_param.index:
@@ -105,7 +110,7 @@ for project in df_selection.loc[df_selection['SP'] == sp_values[n_sp],'Project']
         # Load the hyperparameters
         hyperparameters = df_param.iloc[[i]].to_dict(orient='records')[0] # Using `.loc[i, :]` returns a Series, which may upcast ints to floats — use `.iloc[[i]]` for dtype-safe row extraction.
 
-        if mdl_name in ['rf','xgb','ebm','en']: # Fix the seed when it's possibel
+        if mdl_name in ['rf','xgb','ebm','en']: # Fix the seed when it's possible
             hyperparameters['random_state'] = seed
         # SV is a deterministic model, so no need to set the random state
 
@@ -153,16 +158,10 @@ for project in df_selection.loc[df_selection['SP'] == sp_values[n_sp],'Project']
 
         # Elapsed time for the test run
         end_time = time.time()
-        elapsed_time = round(end_time - start_time,0) # in seconds
+        elapsed_time = end_time - start_time # in seconds
 
         # Update the test run
-        #mse_test.append([sp_values[n_sp],project] + df_param.loc[i,:].values.tolist() + [mse,elapsed_time])
         mse_test.append([sp_values[n_sp],project,i] + [df_param.loc[i,c] for c in df_param.columns] + [test_mse,elapsed_time])
 
 # Save the results of the model selection
-#pd.DataFrame(mse_test,columns=['SP','Project'] + df_param.columns.tolist() + ['MSE','time']).to_csv(f"lhs{n_trial}_model_selection_{mdl_name}_{n_sp}.csv",index=False)
-pd.DataFrame(mse_test,columns=['SP','Project','lhs'] + df_param.columns.tolist() + ['MSE','time']).to_csv(f"./model_selection/lhs{n_trial}_model_selection_{mdl_name}_{n_sp}.csv",index=False)
-
-
-
-
+pd.DataFrame(mse_test,columns=['SP','Project','lhs_param'] + df_param.columns.tolist() + ['MSE','time']).to_csv(os.path.join(path_model_selection,f"lhs{n_trial}_model_selection_{mdl_name}_sp{n_sp}.csv"),index=False)

@@ -2,7 +2,7 @@
 #SBATCH --job-name=lhs0_msel_ebm_0
 #SBATCH --output=lhs0_msel_ebm_0.out
 #SBATCH --error=lhs0_msel_ebm_0.err
-#SBATCH --time=15:00:00
+#SBATCH --time=20:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --chdir=/home/uc27/uc27001/glassboxevm/
