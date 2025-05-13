@@ -11,6 +11,7 @@ from typing import Tuple
 
 # Network tools
 
+
 # Read a project file in Patterson's format and create the Directec Acyclic Graph (DAG)
 def read_dag_file(file_path: str) -> nx.DiGraph:
     """
@@ -26,17 +27,19 @@ def read_dag_file(file_path: str) -> nx.DiGraph:
     G=nx.DiGraph()
     try:
         with open(file_path, 'r') as file:
-            # Fisrt line is empty
-            file.readline()
+            # Read all non-empty lines
+            lines = [line.strip() for line in file if line.strip()]
+            
             # Read number of activities and resources
-            num_activities, num_resources = map(int, file.readline().strip().split())
+            num_activities, num_resources = map(int, lines[0].split())
+            
             # Read resource availability
-            resource_availability = list(map(int, file.readline().strip().split()))
-            # Fourth line is empty
-            file.readline()
+            resource_availability = list(map(int, lines[1].split()))
+            
             # Read data for each activity
-            for activity_id in range(1, num_activities + 1):
-                data = file.readline().strip().split()
+            for i in range(num_activities):
+                data = lines[2 + i].split()
+                activity_id = i + 1
                 duration = int(data[0])
                 G.add_node(activity_id, duration0=duration)
                 required_resources = list(map(int, data[1:1 + num_resources]))
@@ -44,6 +47,27 @@ def read_dag_file(file_path: str) -> nx.DiGraph:
                 for successor in data[2 + num_resources:]:
                     G.add_edge(activity_id, int(successor))
         return G
+
+    # try:
+    #     with open(file_path, 'r') as file:
+    #         # Fisrt line is empty
+    #         file.readline()
+    #         # Read number of activities and resources
+    #         num_activities, num_resources = map(int, file.readline().strip().split())
+    #         # Read resource availability
+    #         resource_availability = list(map(int, file.readline().strip().split()))
+    #         # Fourth line is empty
+    #         file.readline()
+    #         # Read data for each activity
+    #         for activity_id in range(1, num_activities + 1):
+    #             data = file.readline().strip().split()
+    #             duration = int(data[0])
+    #             G.add_node(activity_id, duration0=duration)
+    #             required_resources = list(map(int, data[1:1 + num_resources]))
+    #             num_successors = int(data[1 + num_resources])
+    #             for successor in data[2 + num_resources:]:
+    #                 G.add_edge(activity_id, int(successor))
+    #     return G
 
     except Exception as e:
         print(f"Error reading the file: {e}")
@@ -73,9 +97,10 @@ def add_risk_parameters(G: nx.DiGraph, optim: float, mostprob: float, pessim: fl
 
 
 # Compute the topological indicators for a given network (Vanhoucke, 2008)
-def compute_topological_indicators(G: nx.DiGraph) -> Tuple[float, float, float, float]:
+def compute_topological_indicators(Go: nx.DiGraph) -> Tuple[float, float, float, float]:
     """
     Computes four topological indicators proposed by Vanhoucke of a directed graph.
+    Asuming the graph is a directed acyclic graph (DAG) with dummy start and end nodes (Patterson's format).
 
     Args:
         G (nx.DiGraph): A directed acyclic graph representing a project network. 
@@ -86,32 +111,32 @@ def compute_topological_indicators(G: nx.DiGraph) -> Tuple[float, float, float, 
         indicators: the serial-parallel (SP), the activity distribution (AD),
         the short arcs (LA), and the topological flow (TF).
     """
-    n = G.number_of_nodes() - 2  # Excluding start and end according to Patterson's format
-    lnodes = list(G.nodes()) 
-    start, end = lnodes[0], lnodes[-1] # Start and end nodes are dummy activities
+    G=Go.copy()
+    lorder = list(nx.topological_sort(G))
+    # Remove start and end nodes
+    G.remove_node(lorder[0])    
+    G.remove_node(lorder[-1])
+
+    lorder = list(nx.topological_sort(G))
+    n = G.number_of_nodes() 
     lorder = list(nx.topological_sort(G))
     
     # Compute progressive levels (PL)
     Plevels = {node: 0 for node in G.nodes}
-    for node in lorder[1:-1]:  # Skip start and end
+    for node in lorder:  
         Plevels[node] = 1 + max((Plevels[p] for p in G.predecessors(node)), default=0)
-
-    Plevels.pop(start)
-    Plevels.pop(end)
-
     m = max(Plevels.values(), default=0)
 
     # Compute regressive levels (RL)
-    Rlevels = {node: m + 1 for node in G.nodes}
-    for node in list(reversed(lorder))[1:-1]:  # Reverse order, skip start and end
-        Rlevels[node] = min((Rlevels[s] for s in G.successors(node)), default=m) - 1
+    Rlevels = {node: 0 for node in G.nodes}
+    for node in list(reversed(lorder)):
+        Rlevels[node] = min((Rlevels[s] for s in G.successors(node)), default=m+1) - 1
 
-    Rlevels.pop(start)
-    Rlevels.pop(end)
 
     # Count occurrences of each progressive level
     Wlevels_counts = Counter(Plevels.values())
-    Wlevels = np.array(list(Wlevels_counts.values()))
+    Wlevels = np.array([Wlevels_counts.get(a, 0) for a in range(1, m + 1)])
+    #Wlevels = np.array(list(Wlevels_counts.values()))
     D = np.sum(Wlevels[:-1] * Wlevels[1:]) if len(Wlevels) > 1 else 0
 
     # Serial-parallel indicator (I2-SP)
@@ -122,15 +147,29 @@ def compute_topological_indicators(G: nx.DiGraph) -> Tuple[float, float, float, 
     AD = np.abs(Wlevels - W_mean).sum() / (2 * (m - 1) * (W_mean - 1)) if (m > 1) and (m < n) else 0
 
     # Compute short arcs indicator (I4-LA)
-    lengths_arcs = [Plevels[j] - Plevels[i] for i, j in G.edges if i != start and j != end]
+    lengths_arcs = [Plevels[j] - Plevels[i] for i, j in G.edges ]
     lengths_counts = Counter(lengths_arcs)
-    lengths = np.array(list(lengths_counts.values()))
-    LA = (lengths[0] - n + Wlevels[0]) / (D - n + Wlevels[0]) if D != (n - Wlevels[0]) else 1
+    n1 = lengths_counts.get(1, 0)  # number of arcs of length 1
+    # w1 = number of activities at progressive level 1
+    w1 = Wlevels[0] if len(Wlevels) > 0 else 0
+    if D == (n - w1):
+        LA = 1
+    else:
+        LA = (n1 - n + w1) / (D - n + w1)
+
+    # Compute I5
+    total_arcs = sum(lengths_counts.values())  # |A|
+    if total_arcs == n - w1:
+        I5 = 1
+    else:
+        weighted_sum = sum( lengths_counts.get(l, 0) * ((m - l - 1) / (m - 2)) 
+            for l in range(2, m) if (m - 2) > 0)
+    I5 = (weighted_sum + n1 - n + w1) / (total_arcs - n + w1) if (total_arcs - n + w1) != 0 else 0
 
     # Topological flow indicator (I6-TF)
     TF = np.sum(np.fromiter((Rlevels[node] - Plevels[node] for node in Plevels), dtype=int)) / ((m - 1) * (n - m)) if (m > 1) and (m < n) else 0
 
-    return SP, AD, LA, TF
+    return n, SP, AD, LA, I5, TF
 
 # Visualize the DAG using a hierarchical layout
 def visualize_dag(G: nx.DiGraph, figsize: Tuple[int, int] = (8, 6)) -> None:
