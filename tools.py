@@ -121,6 +121,15 @@ def compute_topological_indicators(Go: nx.DiGraph) -> Tuple[float, float, float,
     n = G.number_of_nodes() 
     lorder = list(nx.topological_sort(G))
     
+    # Compute the Coefficient of Network Complexity (CNC)
+    CNC = G.number_of_edges() / n if n > 0 else 0
+
+    # Compute the Order Strnegth (OS)
+    # Count the number of edges in the transitive closure (precedence relations)
+    num_precedence_relations = nx.transitive_closure(G).number_of_edges()
+    OS = num_precedence_relations / (n * (n - 1) / 2) if n > 1 else 0
+
+
     # Compute progressive levels (PL)
     Plevels = {node: 0 for node in G.nodes}
     for node in lorder:  
@@ -169,7 +178,7 @@ def compute_topological_indicators(Go: nx.DiGraph) -> Tuple[float, float, float,
     # Topological flow indicator (I6-TF)
     TF = np.sum(np.fromiter((Rlevels[node] - Plevels[node] for node in Plevels), dtype=int)) / ((m - 1) * (n - m)) if (m > 1) and (m < n) else 0
 
-    return n, SP, AD, LA, I5, TF
+    return n, CNC, OS, SP, AD, LA, I5, TF
 
 # Visualize the DAG using a hierarchical layout
 def visualize_dag(G: nx.DiGraph, figsize: Tuple[int, int] = (8, 6)) -> None:
