@@ -1,8 +1,5 @@
 # Ignoring directories
-/deprecated
-/references
-/lightning_logs
-/saved_models
-/models
-.pt_tmp
+/.deprecated
+/.references
+/.vscode
 __pycache__
