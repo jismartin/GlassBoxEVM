@@ -8,93 +8,78 @@ import re
 import os
 from typing import Tuple
 
-
 # Network tools
 
+## Graph attributes (for each activity-node)
+#
+## PSPLIB dataset
+# pert_duration
+# cost: variable cost (proportional to total effort)
+#
+## beta-PERT distribution
+# Optimistic: optimistic duration
+# MostLikely: most likely duration
+# Pessimistic: pessimistic duration
+# MeanDuration: mean duration
+#
+## Control point (at EV)
+# duration@: duration at EV
+# ev@: plan cost incurred up to EV
+# done%: percentage of completion
+#
+## Simulation
+# duration: duration sampled from beta-PERT distribution
 
-# Read a project file in Patterson's format and create the Directec Acyclic Graph (DAG)
-def read_dag_file(file_path: str) -> nx.DiGraph:
+# Read a project file in PSPLIB format and create the Directec Acyclic Graph (DAG)
+def read_sm_file(file_path: str) -> nx.DiGraph:
     """
-    Read a project file in Patterson's format and create the Directec Acyclic Graph (DAG).
-    In Vanhoucke's dataset, the first line and the fourth line are empty, and empty lines are used to separate the data.
-    
+    Read a project file in PSPLIB format and create the Directec Acyclic Graph (DAG).
+    Update PSPLIB attributes of the nodes.
+
     Args:
         file_path (str): The path to the project file.
 
     Returns:
         nx.DiGraph: A directed acyclic graph representing a project network.
     """
+
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        raw = [ln.rstrip("\n") for ln in f]
+
+    # Get number of jobs
+    for line in raw:
+        if "jobs (incl. supersource/sink ):" in line:
+            n_jobs = int(line.rstrip("\n").split()[-1])
+
+
     G=nx.DiGraph()
-    try:
-        with open(file_path, 'r') as file:
-            # Read all non-empty lines
-            lines = [line.strip() for line in file if line.strip()]
-            
-            # Read number of activities and resources
-            num_activities, num_resources = map(int, lines[0].split())
-            
-            # Read resource availability
-            resource_availability = list(map(int, lines[1].split()))
-            
-            # Read data for each activity
-            for i in range(num_activities):
-                data = lines[2 + i].split()
-                activity_id = i + 1
-                duration = int(data[0])
-                G.add_node(activity_id, duration0=duration)
-                required_resources = list(map(int, data[1:1 + num_resources]))
-                num_successors = int(data[1 + num_resources])
-                for successor in data[2 + num_resources:]:
-                    G.add_edge(activity_id, int(successor))
-        return G
+    
+    # Find the lines with precedence relations and requests/durations
+    l_precedence = -1
+    l_requests = -1
+    for (i,line) in enumerate(raw):
+        if "PRECEDENCE RELATIONS:" in line:
+            l_precedence = i + 2
+        if "REQUESTS/DURATIONS:" in line:
+            l_requests = i + 3
+    if (l_precedence == -1) or (l_requests == -1):
+        raise ValueError("Line with 'PRECEDENCE OR REQUESTS/DURATIONS:' not found.")
 
-    # try:
-    #     with open(file_path, 'r') as file:
-    #         # Fisrt line is empty
-    #         file.readline()
-    #         # Read number of activities and resources
-    #         num_activities, num_resources = map(int, file.readline().strip().split())
-    #         # Read resource availability
-    #         resource_availability = list(map(int, file.readline().strip().split()))
-    #         # Fourth line is empty
-    #         file.readline()
-    #         # Read data for each activity
-    #         for activity_id in range(1, num_activities + 1):
-    #             data = file.readline().strip().split()
-    #             duration = int(data[0])
-    #             G.add_node(activity_id, duration0=duration)
-    #             required_resources = list(map(int, data[1:1 + num_resources]))
-    #             num_successors = int(data[1 + num_resources])
-    #             for successor in data[2 + num_resources:]:
-    #                 G.add_edge(activity_id, int(successor))
-    #     return G
-
-    except Exception as e:
-        print(f"Error reading the file: {e}")
-        return None
-
-# Add risk parameters to the nodes of a project network
-def add_risk_parameters(G: nx.DiGraph, optim: float, mostprob: float, pessim: float) -> None:
-    """
-    Add risk parameters to the nodes of a project network.
-
-    Args:
-        G (nx.DiGraph): A directed acyclic graph representing a project network.
-        optim (float): The optimistic factor for the risk.
-        mostprob (float): The most probable factor for the risk.
-        pessim (float): The pessimistic factor for the risk.
-            
-    Returns:    
-        None: The function modifies the graph in place.
-    """
-
-    # parameters relative to baseline duration
-    for n in G.nodes():
-        G.nodes[n]['Optimistic']=G.nodes[n]['duration0']*optim
-        G.nodes[n]['MostLikely']=G.nodes[n]['duration0']*mostprob
-        G.nodes[n]['Pessimistic']=G.nodes[n]['duration0']*pessim
-        G.nodes[n]['MeanDuration']=(G.nodes[n]['Optimistic']+4*G.nodes[n]['MostLikely']+G.nodes[n]['Pessimistic'])/6
-
+    # Add nodes and edges to the graph
+    for i in range(n_jobs):
+        node=int(raw[l_precedence + i].split()[0])
+        duration=int(raw[l_requests + i].split()[2])
+        
+        # There is no activity cost data in PSPLIB dataset
+        # We assume that resources are similarly priced and (variable) costs are proportional to total effort (number of resource units)
+        cost = sum([int(r) for r in raw[l_requests + i].split()[3:]])  
+        
+        G.add_node(node,pert_duration=duration,cost=cost)
+        if int(raw[l_precedence + i ].split()[2]) != 0:
+            for successor in raw[l_precedence + i].split()[3:]:
+                G.add_edge(node, int(successor))
+    
+    return G
 
 # Compute the topological indicators for a given network (Vanhoucke, 2008)
 def compute_topological_indicators(Go: nx.DiGraph) -> Tuple[float, float, float, float]:
@@ -211,11 +196,34 @@ def visualize_dag(G: nx.DiGraph, figsize: Tuple[int, int] = (8, 6)) -> None:
     nx.draw(G0, pos, with_labels=True, node_color="lightblue", alpha=0.7, edge_color="gray", arrows=True)
     plt.show()
 
-
 # Simulation tools
 
-# Generate random samples from a PERT-like distribution
-def pert_sample(optimistic: float, most_probable: float, pessimistic: float, elapsed_time: float =0, complete_percent: float =0,
+# Add risk parameters to the nodes of a project network
+def add_risk_parameters(G: nx.DiGraph, optim: float, mostprob: float, pessim: float) -> None:
+    """
+    Add risk parameters to the nodes of a project network.
+    Update the beta-PERT attributes of the nodes.
+
+    Args:
+        G (nx.DiGraph): A directed acyclic graph representing a project network.
+        optim (float): The optimistic factor for the risk.
+        mostprob (float): The most probable factor for the risk.
+        pessim (float): The pessimistic factor for the risk.
+            
+    Returns:    
+        None: The function modifies the graph in place.
+    """
+
+    # parameters relative to baseline duration
+    for n in G.nodes():
+        G.nodes[n]['Optimistic']=G.nodes[n]['pert_duration']*optim
+        G.nodes[n]['MostLikely']=G.nodes[n]['pert_duration']*mostprob
+        G.nodes[n]['Pessimistic']=G.nodes[n]['pert_duration']*pessim
+        G.nodes[n]['MeanDuration']=(G.nodes[n]['Optimistic']+4*G.nodes[n]['MostLikely']+G.nodes[n]['Pessimistic'])/6
+        G.nodes[n]['duration'] = 0 # duration sampled form beta-PERT
+
+# Generate random samples from a beta-PERT distribution
+def beta_pert_sample(optimistic: float, most_probable: float, pessimistic: float, elapsed_time: float =0, complete_percent: float =0,
                 size: int =1000, lamb: float =4) -> np.ndarray:
     """
     Generate random samples from a PERT-like distribution.
@@ -249,26 +257,38 @@ def pert_sample(optimistic: float, most_probable: float, pessimistic: float, ela
     samples = a + samples * (c-a)
     return samples if complete_percent == 0 else elapsed_time + (1-complete_percent) * samples	
 
-
-# Draw random durations for the activities following a PERT distribution
-def draw_random_durations(G: nx.DiGraph, pert_sample=pert_sample):
+# Draw random durations for the activities following a beta-PERT distribution
+def draw_random_durations(G,control=False,beta_pert_sample=beta_pert_sample):
     """
-    Draw random durations for the activities following a PERT distribution.
-    The function modifies the 'duration' attribute of each node in the graph.
-        
+    Draw random durations for the activities following a beta-PERT distribution.
+    Update duration attribute of the nodes.
+
     Args:
         G (nx.DiGraph): A directed acyclic graph representing a project network.
-        pert_sample (function): Function to sample durations from a PERT distribution.
-        
-    Returns:
-        None: The function modifies the graph in place.
-    """    
+        control (bool, optional): Whether to use control point attributes. Defaults to False.
+        beta_pert_sample (callable, optional): Function to sample from the beta-PERT distribution. Defaults to beta_pert_sample.
+    """
+    
     nx.set_node_attributes(G,0,'duration')
-    for n in list(G.nodes())[1:-1]: # Skip the start and end nodes
-        G.nodes[n]['duration']=pert_sample(G.nodes[n]['Optimistic'], G.nodes[n]['MostLikely'], G.nodes[n]['Pessimistic'],size=1)[0]
+    if control is False:
+        for n in [j for j in G.nodes() if G.nodes[j]['pert_duration']>0]: # remove dummy nodes (start and end)
+            G.nodes[n]['duration']=beta_pert_sample(G.nodes[n]['Optimistic'], G.nodes[n]['MostLikely'], G.nodes[n]['Pessimistic'],size=1)[0]
+    else:
+        for n in [j for j in G.nodes() if G.nodes[j]['pert_duration']>0]: # remove dummy nodes (start and end): 
 
+            if G.nodes[n]['done%']>=1: # completed activity
+                G.nodes[n]['duration'] = G.nodes[n]['duration@']
+                
+            elif G.nodes[n]['done%']>0 and G.nodes[n]['done%'] <1: # ongoing activity
+                G.nodes[n]['duration']=beta_pert_sample(G.nodes[n]['Optimistic'], G.nodes[n]['MostLikely'], G.nodes[n]['Pessimistic'],
+                                                   elapsed_time=G.nodes[n]['duration@'],
+                                                   complete_percent=G.nodes[n]['done%'],
+                                                   size=1)[0]
 
-# Compute the start time of activities based on the dependencies
+            else: # not started activity
+                G.nodes[n]['duration']=beta_pert_sample(G.nodes[n]['Optimistic'], G.nodes[n]['MostLikely'], G.nodes[n]['Pessimistic'],size=1)[0] 
+
+# Compute the start and finish time of activities based on the dependencies
 def compute_times(G: nx.DiGraph, time='duration'):
     """
     Compute the start and finish times of activities in a directed acyclic graph (DAG).
@@ -294,24 +314,83 @@ def compute_times(G: nx.DiGraph, time='duration'):
         finish_time[n]=start_time[n]+G.nodes[n][time]
     return start_time,finish_time
 
-
-# Find the critical path in a directed acyclic graph (DAG)
-def find_critical_path(G, time='duration'):
+# Evaluate project state at a particular earned value (EV)
+def evaluate_at_EV(G,EV,Ti=0,N=10000):
     """
-    Find the critical path in a directed acyclic graph (DAG) using topological sorting.
-        
+    Evaluate project status at a particular earned value (EV).
+    Update the control point attributes of the nodes.
+    
     Args:
         G (nx.DiGraph): A directed acyclic graph representing a project network.
-        time (str): The attribute name for the duration of the activities. Default is 'duration'.
-            
-    Returns:
-        list: A list of nodes representing the critical path in the graph.
+        EV (float): The earned value to evaluate the project status.
+        Ti (int, optional): The initial time to start the evaluation. Defaults to 0.
+        N (int, optional): The number of points to sample in the evaluation. Defaults to 1000.
+
     """
+    # Compute start and finish times based on the precedence relations and mean durations
+    # initialize the duration to the mean duration
+    for n in G.nodes():
+        G.nodes[n]['duration']=G.nodes[n]['MeanDuration'] 
+    start_time,finish_time =compute_times(G, time='duration')
+
+    # Initialize DataFrame for earned value (EV) analysis
+    df_ev=pd.DataFrame.from_dict({n:n for n in G.nodes()}, orient='index', columns=['node'])
+    for col in ['cost','MeanDuration','duration']:
+        df2=pd.DataFrame.from_dict(nx.get_node_attributes(G, col), orient='index', columns=[col])
+        df_ev=pd.concat([df_ev,df2], axis=1)
+    df_ev=pd.concat([df_ev, pd.DataFrame.from_dict(start_time, orient='index', columns=['t_start'])], axis=1)
+    df_ev=pd.concat([df_ev, pd.DataFrame.from_dict(finish_time, orient='index', columns=['t_end'])], axis=1)
+    df_ev['duration@']=0.0
+    df_ev['ev@']=0.0
+    df_ev['done%']=0.0
+
+    # Matrix representation
+    A=df_ev.values 
+    c={'node':0, 'cost':1, 'MeanDuration':2, 'duration':3, 't_start':4, 't_end':5, 'duration@':6, 'ev@':7, 'done%':8}
+
+    # Iterative approach (increase N to get more decimal precission)
+    for T in np.linspace(Ti,df_ev['t_end'].max(),N):
+
+        # Not started activities
+        not_started = T<=A[:,c['t_start']]
+        A[not_started,c['duration@']]=0
+        A[not_started,c['ev@']]=0
+
+        # Ended activities
+        ended = T>=A[:,c['t_end']]
+        A[ended,c['duration@']]=A[ended,c['duration']] # Actual duration
+        A[ended,c['ev@']]=A[ended,c['MeanDuration']]*A[ended,c['cost']] # plan cost
+        A[ended,c['done%']]=1.0 # 100% done
+
+        # Running activities
+        running = (A[:,c['t_start']]<T) & (A[:,c['t_end']]>T)
+        completion_rate = (T-A[running,c['t_start']]) / (A[running,c['t_end']]-A[running,c['t_start']])
+        A[running,c['duration@']] = A[running,c['duration']] * completion_rate # actual duration at EV
+        A[running,c['ev@']] = A[running,c['MeanDuration']] * A[running,c['cost']] * completion_rate # plan cost incurred up to EV
+        A[running,c['done%']] = completion_rate # % of the activity done
+        if A[:,c['ev@']].sum()/(A[:,c['MeanDuration']]*A[:,c['cost']]).sum()>=EV:
+            break;
+
+    df_ev.loc[:,'duration@']=A[:,c['duration@']]
+    df_ev.loc[:,'ev@']=A[:,c['ev@']]
+    df_ev.loc[:,'done%']=A[:,c['done%']]
     
+    # Update Graph
+    for n in df_ev.index:
+        G.nodes[n]['duration@'] = df_ev.loc[n, 'duration@']
+        G.nodes[n]['ev@'] = df_ev.loc[n, 'ev@']
+        G.nodes[n]['done%'] = df_ev.loc[n, 'done%']
+    
+# Find the critical path in the project
+def find_critical_path(G, time='duration'):
     # Compute the start and finish times
     start_time, finish_time = compute_times(G, time)  
 
     # Identify the unique end node using topological sorting
+    topo_order = list(nx.topological_sort(G))
+    end_node = topo_order[-1]  # The last node in topological order is the end node
+
+    # Trace back from the end node using reverse topological order
     topo_order = list(nx.topological_sort(G))
     end_node = topo_order[-1]  # The last node in topological order is the end node
 
@@ -333,7 +412,15 @@ def find_critical_path(G, time='duration'):
     return critical_path
 
 # Monte-Carlo simulation of the project
-def simulation(G: nx.DiGraph, project_name: str, experiment: str,Nruns: int=10000,echo: bool=False):
+def simulation(
+    G: nx.DiGraph,
+    project_name: str,
+    experiment: str,
+    control: bool = False,
+    Nruns: int = 10000,
+    echo: bool = False,
+    output_dir: str = './montecarlo',
+):
     """
     Monte Carlo simulation of the project using a PERT distribution.
 
@@ -341,28 +428,33 @@ def simulation(G: nx.DiGraph, project_name: str, experiment: str,Nruns: int=1000
         G (nx.DiGraph): A directed acyclic graph representing a project network.
         project_name (str): Name of the project for saving results.
         experiment (str): Experiment identifier for saving results.
+        control (bool): Whether to use control point for starting the simulation.
         Nruns (int): Number of simulation runs.
         echo (bool): Whether to print progress messages.
+        output_dir (str): Destination directory for the output CSV file.
+            Defaults to './montecarlo'.
 
     Returns:
         None: The function saves the simulation results to a CSV file.
     """
 
     sim_list=list() # list of dictionaries with runs
-    if echo: print('Starting simulation...')
+    if echo: print(f'Starting simulation of {project_name}...')
     for m in range(Nruns):
         # Draw durations
-        draw_random_durations(G)
+        draw_random_durations(G,control=control)
         # Save run
         sim={'duration'+str(i):G.nodes[i]['duration'] for i in G.nodes()}
-        sim.update({'critical_path':find_critical_path(G,time='duration')})
-        sim.update({'baseline_duration':np.max([t for t in compute_times(G,time='duration0')[1].values()])}) # baseline duration based on mean durations
+        #sim.update({'critical_path':find_critical_path(G,time='duration')})
+        sim.update({'baseline_duration':np.max([t for t in compute_times(G,time='MeanDuration')[1].values()])}) # baseline duration based on mean durations
         sim.update({'actual_duration':np.max([t for t in compute_times(G,time='duration')[1].values()])}) # final duration based on actual durations
         sim_list.append(sim)
-        if echo: print(m)
-    if echo: print('... end simulation')
+        #if echo: print(m)
+    #if echo: print('... end simulation')
 
-    pd.DataFrame.from_dict(sim_list).to_csv('./results/'+project_name+'_simulation_' + experiment+ '.csv')
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, project_name + '_simulation_' + experiment + '.csv')
+    pd.DataFrame.from_dict(sim_list).to_csv(output_path)
 
 
 
