@@ -1,0 +1,2 @@
+project,model,lhs,lr_max,layer1,layer2,wd,RelMSE,time
+j303_4,fastai,0,0.0057543993733715,112,72,0.0006606934480075,0.07020146752775841,44.0

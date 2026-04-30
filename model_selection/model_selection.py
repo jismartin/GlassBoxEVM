@@ -196,5 +196,5 @@ for lhs_i in mdl_lhs_params.index[:1]:
 
 # ---------------- Save retults ----------------
 # Save the results of the model selection
-pd.DataFrame(mse_test,columns=['project','model','lhs'] + mdl_lhs_params.columns.tolist() + ['RelMSE','time']).to_csv(f"{path_results}/test_lhs_model_selection_{mdl_name}_project_{project_name}.csv",index=False)
+pd.DataFrame(mse_test,columns=['project','model','lhs'] + mdl_lhs_params.columns.tolist() + ['RelMSE','time']).to_csv(f"{path_results}/lhs_model_selection_{mdl_name}_project_{project_name}.csv",index=False)
 
