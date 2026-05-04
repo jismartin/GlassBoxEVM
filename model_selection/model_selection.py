@@ -90,7 +90,7 @@ mse_test = []
 
 # ---------------- Train and test models ----------------
 # Test all combinations of hyperparameters
-for lhs_i in mdl_lhs_params.index[:1]:
+for lhs_i in mdl_lhs_params.index:
 
     print(f"Running {mdl_name} for {project_name} with {lhs_i}-LHShyperparameters")
 
@@ -98,7 +98,7 @@ for lhs_i in mdl_lhs_params.index[:1]:
     start_time = time.time()
 
     # Load the model's hyperparameters
-    hyperparameters = mdl_lhs_params.iloc[[lhs_i]].to_dict(orient='records')[0] # Using `.loc[i, :]` returns a Series, which may upcast ints to floats — use `.iloc[[i]]` for dtype-safe row extraction.
+    hyperparameters = mdl_lhs_params.loc[[lhs_i]].to_dict(orient='records')[0] # Using `.loc[i, :]` returns a Series, which may upcast ints to floats; use `.loc[[i]]` for dtype-safe row extraction.
      
     if mdl_name == 'fastai':
         set_seed(seed, reproducible=True)
@@ -196,5 +196,12 @@ for lhs_i in mdl_lhs_params.index[:1]:
 
 # ---------------- Save retults ----------------
 # Save the results of the model selection
-pd.DataFrame(mse_test,columns=['project','model','lhs'] + mdl_lhs_params.columns.tolist() + ['RelMSE','time']).to_csv(f"{path_results}/lhs_model_selection_{mdl_name}_project_{project_name}.csv",index=False)
+results = pd.DataFrame(mse_test,columns=['project','model','lhs'] + mdl_lhs_params.columns.tolist() + ['RelMSE','time'])
+expected_lhs = set(mdl_lhs_params.index)
+computed_lhs = set(results['lhs'])
+if computed_lhs != expected_lhs:
+    missing_lhs = sorted(expected_lhs - computed_lhs)
+    extra_lhs = sorted(computed_lhs - expected_lhs)
+    raise RuntimeError(f"Incomplete LHS results for {mdl_name}/{project_name}. Missing: {missing_lhs}. Extra: {extra_lhs}.")
+results.to_csv(f"{path_results}/lhs_model_selection_{mdl_name}_project_{project_name}.csv",index=False)
 
