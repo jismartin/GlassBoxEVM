@@ -1,0 +1,2 @@
+project,subset,model,lhs,alpha,l1_ratio,RelMSE,time
+j12025_3,J120,en,36,0.0001318256738556,0.91,7.96641001007409e-08,14.0

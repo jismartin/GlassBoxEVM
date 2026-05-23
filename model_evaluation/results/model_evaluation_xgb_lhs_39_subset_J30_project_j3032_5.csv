@@ -1,0 +1,2 @@
+project,subset,model,lhs,n_estimators,learning_rate,max_depth,subsample,colsample_bytree,min_child_weight,reg_alpha,reg_lambda,RelMSE,time
+j3032_5,J30,xgb,39,451,0.0694958890555521,4,0.505,0.655,1.2333095649679735,0.1819700858609983,0.4466835921509632,0.004358032591265549,1.0

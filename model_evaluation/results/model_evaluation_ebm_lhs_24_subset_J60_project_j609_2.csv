@@ -1,0 +1,2 @@
+project,subset,model,lhs,interactions,learning_rate,max_leaves,min_samples_leaf,early_stopping_rounds,RelMSE,time
+j609_2,J60,ebm,24,0.8729999999999999,0.0156894818692829,3,3,74,6.950131955166396e-05,918.0

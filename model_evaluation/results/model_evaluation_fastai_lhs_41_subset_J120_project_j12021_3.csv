@@ -1,0 +1,2 @@
+project,subset,model,lhs,lr_max,layer1,layer2,wd,RelMSE,time
+j12021_3,J120,fastai,41,0.0015848931924611,120,128,0.0007943282347242,0.03446700843062519,58.0
