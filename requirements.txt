@@ -7,4 +7,6 @@ scikit-posthocs
 scikit-learn
 xgboost
 interpret
-skorch
+fastai
+torch
+networkx
