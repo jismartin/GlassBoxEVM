@@ -32,8 +32,6 @@ The project evaluates the following regression models:
 - [`model_selection/`](model_selection/): hyperparameter grids, selection scripts, SLURM jobs, and selection results.
 - [`model_evaluation/`](model_evaluation/): final evaluation scripts, jobs, results, and analysis tables.
 - [`scripts/`](scripts/): shared project utilities for reading PSPLIB files, computing topology, evaluating EVM control points, and running simulations.
-- [`docs/`](docs/): additional project documentation.
-- [`.deprecated/`](.deprecated/): legacy notebooks and older experimental material kept outside the active workflow.
 - [`workflow_notebooks.md`](workflow_notebooks.md): ordered description of the active notebooks and the actions performed in each one.
 - [`hyperparameters.md`](hyperparameters.md): description of the hyperparameters explored for each benchmarked model and the LHS ranges used during model selection.
 
@@ -75,7 +73,6 @@ The main dependencies include `pandas`, `numpy`, `scikit-learn`, `xgboost`, `int
 - The notebook workflow assumes the repository is executed from the project root.
 - Monte Carlo simulations and model runs can be computationally expensive.
 - SLURM notebooks generate job scripts configured for the Altamira Supercomputer, especially for large-scale hyperparameter selection and final evaluation.
-- Legacy or superseded notebooks are stored in [`.deprecated/`](.deprecated/) and are not part of the current workflow.
 
 ## Acknowledgements
 
