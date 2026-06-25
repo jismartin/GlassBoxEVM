@@ -35,6 +35,7 @@ The project evaluates the following regression models:
 - [`docs/`](docs/): additional project documentation.
 - [`.deprecated/`](.deprecated/): legacy notebooks and older experimental material kept outside the active workflow.
 - [`workflow_notebooks.md`](workflow_notebooks.md): ordered description of the active notebooks and the actions performed in each one.
+- [`hyperparameters.md`](hyperparameters.md): description of the hyperparameters explored for each benchmarked model and the LHS ranges used during model selection.
 
 ## Workflow Overview
 
