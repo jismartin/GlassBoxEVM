@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"""Run the FastAI LHS-41 model evaluation locally over project_evaluation.csv.
+"""Run a FastAI LHS model evaluation locally over project_evaluation.csv.
+
+The LHS hyperparameterization is chosen with --lhs (default: 41, the original
+local run; use --lhs 10 for the corrected selection).
 
 This is the local-desktop counterpart of
 model_evaluation/jobs/slurm_model_evaluation_fastai_lhs_41.sh.  It launches one
@@ -53,9 +56,15 @@ class RunResult:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run local FastAI model evaluation for LHS hyperparameterization 41 "
+            "Run local FastAI model evaluation for one LHS hyperparameterization "
             "over projects listed in model_evaluation/project_evaluation.csv."
         )
+    )
+    parser.add_argument(
+        "--lhs",
+        type=int,
+        default=41,
+        help="LHS hyperparameterization id from lhs_fastai_parameters.csv. Default: 41.",
     )
     parser.add_argument(
         "--workers",
@@ -157,10 +166,10 @@ def read_projects(projects_csv: Path) -> list[Project]:
     return projects
 
 
-def expected_result_path(results_dir: Path, project: Project) -> Path:
+def expected_result_path(results_dir: Path, project: Project, lhs: int) -> Path:
     return (
         results_dir
-        / f"model_evaluation_fastai_lhs_41_subset_{project.subset}_project_{project.name}.csv"
+        / f"model_evaluation_fastai_lhs_{lhs}_subset_{project.subset}_project_{project.name}.csv"
     )
 
 
@@ -177,7 +186,7 @@ def select_projects(projects: list[Project], args: argparse.Namespace) -> list[P
         selected = [
             project
             for project in selected
-            if not expected_result_path(args.results_dir, project).exists()
+            if not expected_result_path(args.results_dir, project, args.lhs).exists()
         ]
     if args.limit is not None:
         selected = selected[: args.limit]
@@ -203,14 +212,14 @@ def worker_env(threads_per_worker: int) -> dict[str, str]:
 
 def run_project(project: Project, args: argparse.Namespace, env: dict[str, str]) -> RunResult:
     args.log_dir.mkdir(parents=True, exist_ok=True)
-    stdout_path = args.log_dir / f"fastai_lhs_41_{project.name}.out"
-    stderr_path = args.log_dir / f"fastai_lhs_41_{project.name}.err"
+    stdout_path = args.log_dir / f"fastai_lhs_{args.lhs}_{project.name}.out"
+    stderr_path = args.log_dir / f"fastai_lhs_{args.lhs}_{project.name}.err"
 
     command = [
         sys.executable,
         str(MODEL_EVALUATION_SCRIPT),
         "fastai",
-        "41",
+        str(args.lhs),
         project.name,
         "--path-results",
         str(args.results_dir),

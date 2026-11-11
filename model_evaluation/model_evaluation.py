@@ -2,13 +2,19 @@
 # Script for Altamira
 # Evaluate one fixed hyperparameterization of a model on one evaluation project.
 #
-# We run FastAI locally because the RelMSE is quite different on the cluster than locally,
-# even reviewing all the parameterization to guarantee replicability.
-# A possible cause is that the data are different or corrupted on that machine (wrong file, different split, or row misalignment).
+# All models, FastAI included, are run on Altamira through SLURM array jobs
+# (model_evaluation/jobs/). An earlier FastAI run (LHS 41) was executed locally
+# because its RelMSE differed between the cluster and the local machine. To audit
+# that, each run prints its execution environment and the SHA-256 of the input
+# files to stdout (SLURM .out log); the result CSV format is unchanged.
 
 
 import argparse
+import hashlib
 import os
+import platform as py_platform
+import socket as py_socket
+import sys as py_sys
 import random
 import time
 
@@ -91,6 +97,38 @@ def reset_seeds(seed_value: int) -> None:
         torch.cuda.manual_seed_all(seed_value)
 
 
+def sha256_file(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def print_environment() -> None:
+    import fastai
+    import interpret
+    import sklearn
+    import xgboost
+
+    print("---- Execution environment ----")
+    print(f"hostname: {py_socket.gethostname()}")
+    print(f"platform: {py_platform.platform()}")
+    print(f"python: {py_sys.version.split()[0]}")
+    for lib in (np, pd, torch, fastai, sklearn, xgboost, interpret):
+        print(f"{lib.__name__}: {getattr(lib, '__version__', 'unknown')}")
+    print(f"SLURM_JOB_ID: {os.environ.get('SLURM_JOB_ID', '-')}")
+    print(f"SLURM_ARRAY_TASK_ID: {os.environ.get('SLURM_ARRAY_TASK_ID', '-')}")
+    print(f"SLURM_CPUS_PER_TASK: {os.environ.get('SLURM_CPUS_PER_TASK', '-')}")
+    print(f"torch threads: {torch.get_num_threads()}")
+    print("-------------------------------")
+
+
+n_threads = int(os.environ.get("SLURM_CPUS_PER_TASK", "1"))
+if mdl_name == "fastai":
+    torch.set_num_threads(n_threads)
+print_environment()
+
 os.makedirs(args.path_results, exist_ok=True)
 
 # Load the model
@@ -136,13 +174,17 @@ mdl_lhs_params = pd.read_csv(
 )
 
 # Read test runs
-df_test_runs = pd.read_csv(f"{args.path_montecarlo}/test_runs.csv")
+test_runs_path = f"{args.path_montecarlo}/test_runs.csv"
+df_test_runs = pd.read_csv(test_runs_path)
 
 # Reset seeds for replicability before each project evaluation
 reset_seeds(seed)
 
 # Read the simulation data for the project
-df = pd.read_csv(f"{args.path_montecarlo}/{project_name}_simulation_01.csv", index_col=0)
+simulation_path = f"{args.path_montecarlo}/{project_name}_simulation_01.csv"
+df = pd.read_csv(simulation_path, index_col=0)
+print(f"sha256 {os.path.basename(simulation_path)}: {sha256_file(simulation_path)}")
+print(f"sha256 {os.path.basename(test_runs_path)}: {sha256_file(test_runs_path)}")
 
 # Training data
 df_train = df.loc[df.index.difference(df_test_runs["test_runs"].values)]
@@ -207,7 +249,7 @@ else:
     if mdl_name in ["rf", "xgb", "ebm", "en"]:
         hyperparameters["random_state"] = seed
     if mdl_name in ["rf", "xgb", "ebm"]:
-        hyperparameters["n_jobs"] = int(os.environ.get("SLURM_CPUS_PER_TASK", "1"))
+        hyperparameters["n_jobs"] = n_threads
     if mdl_name == "en":
         hyperparameters["max_iter"] = 50000
 
