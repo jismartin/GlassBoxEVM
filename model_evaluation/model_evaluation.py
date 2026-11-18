@@ -207,6 +207,13 @@ hyperparameters = mdl_lhs_params.iloc[[hyperparameter_id]].to_dict(orient="recor
 if mdl_name == "fastai":
     set_seed(seed, reproducible=True)
 
+    # Drop zero-variance inputs (activities completed at the control point): they are constant,
+    # carry no information, and fastai's Normalize maps them to large non-zero test values
+    # (statistics on float32 training data vs float64 test data; see test/altamira_fastai_lhs10).
+    const_cols = [c for c in df_train.columns if c.startswith("duration") and df_train[c].nunique() <= 1]
+    print(f"fastai: dropping {len(const_cols)} constant input columns")
+    df_train = df_train.drop(columns=const_cols)
+    df_test = df_test.drop(columns=const_cols)
     splits = RandomSplitter(valid_pct=0.1, seed=seed)(range_of(df_train))
     to = TabularPandas(
         df_train,

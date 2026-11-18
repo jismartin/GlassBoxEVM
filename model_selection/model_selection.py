@@ -1,11 +1,21 @@
 #!/usr/bin/python
 # Script for Altamira
-# We run FastAI locally because the RelMSE is quite different on the cluster than locally,
-# even reviewing all the parameterization to guarantee replicability.
-# A possible cause is that the data are different or corrupted on that machine (wrong file, different split, or row misalignment).
+# Usage:
+#   python model_selection.py <model> <project>             -> all LHS configurations (one CSV per project)
+#   python model_selection.py <model> <project> --lhs <k>   -> a single LHS configuration (one CSV per project and LHS),
+#                                                              used by the fastai SLURM arrays (one short task per LHS)
+#
+# FastAI: inputs with zero variance in the training scenarios (activities completed at the
+# control point) are dropped before TabularPandas. fastai's Normalize computes their statistics
+# on float32 training data (reduce_memory=True) while test_dl keeps float64, which maps these
+# constant inputs to large non-zero test values and breaks the predictions with recent
+# pandas/numpy versions (diagnosed in test/altamira_fastai_lhs10, local-only).
+# Each run prints its execution environment and the SHA-256 of the input files to stdout.
 
 
-import sys, os, time, argparse, random
+import sys, os, time, argparse, random, hashlib
+import platform as py_platform
+import socket as py_socket
 import numpy as np
 import pandas as pd
 
@@ -33,10 +43,18 @@ parser = argparse.ArgumentParser(description='Model selection script for Altamir
 parser.add_argument('model_name', type=str, choices=['rf', 'xgb', 'ebm', 'sv', 'en', 'fastai'],
                     help='Short name of the model (rf, xgb, ebm, sv, en, fastai)')
 parser.add_argument('project_name', type=str, help='Project name for selection model')
+parser.add_argument('--lhs', type=int, default=None,
+                    help='Run a single LHS configuration (index in lhs_<model>_parameters.csv). Default: all.')
+parser.add_argument('--path-results', type=str, default='./model_selection/results',
+                    help='Directory where the output CSV is written.')
+parser.add_argument('--path-hyperparameters', type=str, default='./model_selection/hyperparameters',
+                    help='Directory containing lhs_<model>_parameters.csv.')
+parser.add_argument('--path-montecarlo', type=str, default='./montecarlo',
+                    help='Directory containing the simulation CSVs and test_runs.csv.')
 args = parser.parse_args()
 # Get parsed values
 mdl_name = args.model_name
-project_name = args.project_name
+project_name = args.project_name.removesuffix('.sm')
 
 # ---------------- Setup ----------------
 # Seed for replicability
@@ -45,10 +63,40 @@ np.random.seed(seed); random.seed(seed)
 os.environ['PYTHONHASHSEED'] = str(seed)
 torch.manual_seed(seed)
 
-path_results = './model_selection/results'
-path_hyperparameters = './model_selection/hyperparameters'
-path_montecarlo = './montecarlo'
+path_results = args.path_results
+path_hyperparameters = args.path_hyperparameters
+path_montecarlo = args.path_montecarlo
 os.makedirs(path_results, exist_ok=True)
+
+n_threads = int(os.environ.get("SLURM_CPUS_PER_TASK", "1"))
+if mdl_name == 'fastai':
+    torch.set_num_threads(n_threads)
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def print_environment():
+    import sklearn, xgboost, interpret, fastai
+    print("---- Execution environment ----")
+    print(f"hostname: {py_socket.gethostname()}")
+    print(f"platform: {py_platform.platform()}")
+    print(f"python: {sys.version.split()[0]}")
+    for lib in (np, pd, torch, fastai, sklearn, xgboost, interpret):
+        print(f"{lib.__name__}: {getattr(lib, '__version__', 'unknown')}")
+    print(f"SLURM_JOB_ID: {os.environ.get('SLURM_JOB_ID', '-')}")
+    print(f"SLURM_ARRAY_TASK_ID: {os.environ.get('SLURM_ARRAY_TASK_ID', '-')}")
+    print(f"SLURM_CPUS_PER_TASK: {os.environ.get('SLURM_CPUS_PER_TASK', '-')}")
+    print(f"torch threads: {torch.get_num_threads()}")
+    print("-------------------------------")
+
+
+print_environment()
 
 # Load the model
 if mdl_name == 'rf':
@@ -68,13 +116,17 @@ else:
 
 # ---------------- Data ----------------
 # Read the simulation data
-df = pd.read_csv(f"{path_montecarlo}/{project_name}_simulation_01.csv",index_col=0)
+simulation_path = f"{path_montecarlo}/{project_name}_simulation_01.csv"
+df = pd.read_csv(simulation_path,index_col=0)
 
 # Read the LHS parameters
 mdl_lhs_params = pd.read_csv(f"{path_hyperparameters}/lhs_{mdl_name}_parameters.csv",index_col=0)
 
 # Read test runs
-df_test_runs= pd.read_csv(f"{path_montecarlo}/test_runs.csv")
+test_runs_path = f"{path_montecarlo}/test_runs.csv"
+df_test_runs= pd.read_csv(test_runs_path)
+print(f"sha256 {os.path.basename(simulation_path)}: {sha256_file(simulation_path)}")
+print(f"sha256 {os.path.basename(test_runs_path)}: {sha256_file(test_runs_path)}")
 
 # Training data
 df_train=df.loc[df.index.difference(df_test_runs['test_runs'].values)]
@@ -86,11 +138,26 @@ df_test=df.loc[df_test_runs['test_runs'].values]
 Xtest=df_test[[cl for cl in df_test.columns if cl.startswith('duration')]] 
 Ytest=df_test['actual_duration'] 
 
+if mdl_name == 'fastai':
+    # Drop zero-variance inputs (activities completed at the control point): constant, no information,
+    # and mis-normalised on the test set by fastai (see header).
+    const_cols = [c for c in df_train.columns if c.startswith('duration') and df_train[c].nunique() <= 1]
+    print(f"fastai: dropping {len(const_cols)} constant input columns")
+    df_train = df_train.drop(columns=const_cols)
+    df_test = df_test.drop(columns=const_cols)
+
+if args.lhs is not None:
+    if args.lhs not in mdl_lhs_params.index:
+        raise ValueError(f"LHS {args.lhs} not found in lhs_{mdl_name}_parameters.csv")
+    lhs_list = [args.lhs]
+else:
+    lhs_list = list(mdl_lhs_params.index)
+
 mse_test = []
 
 # ---------------- Train and test models ----------------
-# Test all combinations of hyperparameters
-for lhs_i in mdl_lhs_params.index:
+# Test all combinations of hyperparameters (or the single one given by --lhs)
+for lhs_i in lhs_list:
 
     print(f"Running {mdl_name} for {project_name} with {lhs_i}-LHShyperparameters")
 
@@ -155,7 +222,7 @@ for lhs_i in mdl_lhs_params.index:
         if mdl_name in ['rf','xgb','ebm', 'en']:
             hyperparameters['random_state'] = seed
         if mdl_name in ['rf','xgb','ebm']:
-            hyperparameters['n_jobs'] = int(os.environ.get("SLURM_CPUS_PER_TASK", "1")) #-1
+            hyperparameters['n_jobs'] = n_threads
         if mdl_name == 'en': # SV is a deterministic model, so no need to set the random state
             hyperparameters['max_iter'] = 2000 # Increase the default value to ensure convergence
 
@@ -197,11 +264,16 @@ for lhs_i in mdl_lhs_params.index:
 # ---------------- Save retults ----------------
 # Save the results of the model selection
 results = pd.DataFrame(mse_test,columns=['project','model','lhs'] + mdl_lhs_params.columns.tolist() + ['RelMSE','time'])
-expected_lhs = set(mdl_lhs_params.index)
+expected_lhs = set(lhs_list)
 computed_lhs = set(results['lhs'])
 if computed_lhs != expected_lhs:
     missing_lhs = sorted(expected_lhs - computed_lhs)
     extra_lhs = sorted(computed_lhs - expected_lhs)
     raise RuntimeError(f"Incomplete LHS results for {mdl_name}/{project_name}. Missing: {missing_lhs}. Extra: {extra_lhs}.")
-results.to_csv(f"{path_results}/lhs_model_selection_{mdl_name}_project_{project_name}.csv",index=False)
+if args.lhs is not None:
+    output_file = f"{path_results}/lhs_model_selection_{mdl_name}_lhs_{args.lhs}_project_{project_name}.csv"
+else:
+    output_file = f"{path_results}/lhs_model_selection_{mdl_name}_project_{project_name}.csv"
+results.to_csv(output_file,index=False)
+print(f"saved: {output_file}")
 
