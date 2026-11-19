@@ -1,12 +1,32 @@
-pandas
-numpy
-matplotlib
+# Python environment used for all model runs (selection and evaluation): Altamira venv "mlenv",
+# Python 3.9 (created with 3.9.21). Versions read from the installed packages on 2026-11-19.
+#
+# Install (CPU build of PyTorch, as on Altamira):
+#   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+#   pip install --no-deps fastai==2.7.19
+# fastai 2.7.19 declares torch<2.7, but all runs used torch 2.8.0 (CPU build); installing
+# fastai with --no-deps avoids the resolver conflict. Its own dependencies are listed below.
+
+numpy==2.0.2
+pandas==2.3.2
+scipy==1.13.1
+scikit-learn==1.6.1
+xgboost==2.1.4
+interpret==0.7.2
+torch==2.8.0
+networkx==3.2.1
+matplotlib==3.9.4
+
+# fastai 2.7.19 dependencies, installed explicitly because fastai goes in with --no-deps
+fastcore==1.7.29
+fastprogress==1.0.3
+fastdownload==0.0.7
+torchvision==0.23.0
+pillow==11.0.0
+spacy==3.8.7
+pyyaml          # version not recorded
+requests        # version not recorded
+
+# Analysis notebooks only (run locally; not part of mlenv, versions not recorded)
 seaborn
-scipy
 scikit-posthocs
-scikit-learn
-xgboost
-interpret
-fastai
-torch
-networkx
