@@ -1,4 +1,5 @@
 # Ignoring directories
+/docs
 /.deprecated
 /.references
 /.vscode
