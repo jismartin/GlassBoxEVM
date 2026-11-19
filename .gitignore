@@ -4,5 +4,6 @@
 /.references
 /.vscode
 /test
-/__pycache__
-/.DS_Store
+# Python bytecode caches and macOS folder metadata, at any level
+__pycache__/
+.DS_Store
