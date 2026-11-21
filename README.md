@@ -1,5 +1,7 @@
 # GlassBoxEVM
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24425847.svg)](https://doi.org/10.5281/zenodo.24425847)
+
 GlassBoxEVM is a benchmark of interpretable and black-box regression models used as surrogates of stochastic project duration. For each PSPLIB project, the stochastic activity durations from an Earned Value Management (EVM) control point are simulated by Monte Carlo, and one model per project is trained to map the simulated activity durations to the project makespan. The benchmark compares the accuracy and the computational cost of six model families, with particular attention to the interpretable Explainable Boosting Machine (EBM) and Elastic Net (EN).
 
 The models are surrogates of a known simulation function (the makespan of a precedence network without resource constraints); they are not forecasts validated on real projects.
@@ -91,7 +93,7 @@ The code is released under the MIT licence (see [`LICENSE`](LICENSE)). The simul
 
 ## Citation
 
-Please cite this repository using the metadata in [`CITATION.cff`](CITATION.cff).
+Please cite this repository using the metadata in [`CITATION.cff`](CITATION.cff). The benchmark release `v1.0-benchmark` is archived on Zenodo: [https://doi.org/10.5281/zenodo.24425847](https://doi.org/10.5281/zenodo.24425847).
 
 ## References
 
