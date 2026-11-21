@@ -290,7 +290,7 @@ Detail tables are stored as gzip-compressed CSV or Parquet. Scenario identifiers
 
 | Version | Date | Commit | Description |
 | --- | --- | --- | --- |
-| 1.0 | 21 November 2026 | to be recorded | Pre-pilot version. |
+| 1.0 | 21 November 2026 | ca7fbdc | Pre-pilot version. |
 
 The frozen version, with the technical parameters fixed in the pilot, is recorded here before any confirmatory network is analysed. Any later change is listed with its date, the reason, and whether confirmatory results had been seen at the time. No confirmatory hypothesis is added after the confirmatory networks are examined.
 
@@ -304,6 +304,8 @@ The frozen version, with the technical parameters fixed in the pilot, is recorde
 | Configurations and software environment | Recorded by the pipeline |
 | Q/I_int and Sobol resolution parameters | To be fixed in the pilot |
 | Platform tolerances | To be fixed in the pilot |
+| Benchmark reference release | `v1.0-benchmark`, https://doi.org/10.5281/zenodo.24425847 |
+| Confirmatory sample | Drawn with commit ca7fbdc before any simulation: `protocols/confirmatory_network_manifest.csv` (320 networks, 80 per set, no exclusions) and `protocols/confirmatory_candidate_permutation.csv` (full permutation with substitutes) |
 | Start of the confirmatory analysis | Not started |
 
 ### 10.3 Deviations and incidents
