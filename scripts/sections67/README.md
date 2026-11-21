@@ -32,8 +32,9 @@ python -m scripts.sections67 <stage> --cohort <c> [--network <id>|all|id1,id2 | 
 | `simulate` | network | control point via `tools.add_risk_parameters` + `tools.evaluate_at_EV`; seeded beta-PERT scenarios (seed = SHA-256 rule of §9.2). New networks: 10,000 train/test scenarios (stage `simulate`). All networks: `decision_select` (5,000), `decision_eval` (5,000), `sobol_sample` (10,000); `support.csv` with the theoretical support of each column (in-progress activities: `elapsed + (1-done)·[O,P]`). The 400 original networks keep `montecarlo/<id>_simulation_01.csv`. |
 | `fit` | network × model | EN-36, EBM-24, fastai-41 (code copied from model_evaluation.py), OLS, EBM-24-noint, EN-36-main, EN-36-centred. Saves the full pipeline (`model.joblib`, or fastai `model.pkl` via `Learner.export`), `model_meta.json` (column order, constant mask, test indices, hyperparameters, environment), `predictions.*`, `fit_manifest.csv` with RelMSE (benchmark arithmetic), RelMSE as an SSE ratio, the stored benchmark value and the reload check. One retry after a technical failure. |
 | `structure` | network | exact g check against `actual_duration`, C (tolerance 1e-9·T; sensitivity at 1e-7 and 1e-5), number of critical sets, N_eff, CI per activity, share of variable activities with 0.05<CI<0.95, SP/TF and the other indicators of `tools.compute_topological_indicators`, out-of-sample OLS RelMSE, and the empirical L_emp/I_int_emp/Q_emp (`--no-decomposition` to skip). |
-| `explain` | network × model | `--model exact` first (cached reference for g), then each surrogate: local finite differences (500 test scenarios, ±0.5/±1 training SD, clipped to the theoretical support, exclusion if \|δ_ef\| < 10 % of the step), PD error on 21 quantiles with a 500-test background, S1 (PD variance) and ST (Jansen, 3 permutation seeds) on `sobol_sample`. |
+| `explain` | network × model | `--model exact` first (cached reference for g), then each surrogate: local finite differences (500 test scenarios, ±0.5/±1 training SD, clipped to the theoretical support, exclusion if \|δ_ef\| < 10 % of the step), violation rate at tolerance 0.05 and mean excess of D outside [0, 1], PD error on 21 quantiles with a 500-test background, S1 (PD variance) and ST (Jansen, 3 permutation seeds) on `sobol_sample`. |
 | `decide` | network × model | `--model exact`: exact-greedy, CI and SSI static rankings, exhaustive search for J30/J60 (k = 1, 2, 3); `--model <m>`: surrogate-greedy. Median cap on the selection sample, evaluation with g on `decision_eval` (B_mean, B_p90, expected duration reduction, cap check). |
+| `resolution` | network | Pilot resolution checks (§7.1): decomposition with 21- and 41-point grids and on the independent `sobol_sample`, with Q_emp compared to the summed single-activity curvature; S1 of g with 21/41-point grids and 500/2000-row backgrounds; PD error of EN-36, EBM-24 and fastai-41 with the default grid, a 41-point grid and a grid that adds the support limits. Needs `simulate` and the fits of the three focal models. Writes `resolution/resolution.csv`. |
 | `aggregate` | cohort | collects per-network files, builds `network_metrics.csv`, and writes `inference.csv` (H1 IUT criterion, H2 with Theil–Sen and influence diagnostics in `h2_influence.csv`, H3, H4, Holm over H2–H4, descriptive pairs and ablations) and `run_manifest.json`/`run_manifest.md`. |
 
 Default models: `fit` all seven; `explain` exact + all seven; `decide` exact + EN-36, EBM-24, fastai-41.
@@ -48,7 +49,8 @@ Default models: `fit` all seven; `explain` exact + all seven; `decide` exact + E
 <results>/<cohort>/networks/<id>/explain/<model>/{local_metrics.csv, local_detail.*, sensitivity.*, pd_curves.*}
 <results>/<cohort>/networks/<id>/explain/exact/{exact_reference.npz, indices_*.csv}
 <results>/<cohort>/networks/<id>/decide/<model>/{decisions.csv, medians.csv}
-<results>/<cohort>/aggregate/{fit_manifest,structure_metrics,decomposition,local_metrics,decisions,network_metrics,inference,h2_influence}.csv, sensitivity.*
+<results>/<cohort>/networks/<id>/resolution/resolution.csv
+<results>/<cohort>/aggregate/{fit_manifest,structure_metrics,decomposition,local_metrics,decisions,resolution,network_metrics,inference,h2_influence}.csv, sensitivity.*
 <results>/<cohort>/run_manifest.json, run_manifest.md
 ```
 
@@ -74,6 +76,7 @@ python -m scripts.sections67 explain   --cohort pilot --network-index $SLURM_ARR
 python -m scripts.sections67 explain   --cohort pilot --network-index $SLURM_ARRAY_TASK_ID --model EN-36 --results $RES
 python -m scripts.sections67 decide    --cohort pilot --network-index $SLURM_ARRAY_TASK_ID --model exact --results $RES
 python -m scripts.sections67 decide    --cohort pilot --network-index $SLURM_ARRAY_TASK_ID --model EN-36 --results $RES
+python -m scripts.sections67 resolution --cohort pilot --network-index $SLURM_ARRAY_TASK_ID --results $RES  # pilot only
 python -m scripts.sections67 aggregate --cohort pilot --results $RES                                    # once
 ```
 
@@ -101,7 +104,7 @@ C reference, simulator distributional equivalence) read a local run.
   repository with the available tooling); `config_hash()` is the SHA-256 of its canonical JSON.
 - `run_manifest` is written both as JSON (results directory) and as Markdown.
 - Detail tables are Parquet only when pyarrow exists; otherwise gzip CSV.
-- S1 uses a 500-row background drawn from `sobol_sample` (to be fixed in the pilot).
+- S1 uses a 500-row background drawn from `sobol_sample`; the pilot fixed this setting, with a resolution of about ±0.003 per index.
 - EN-36 RelMSE reproduces the stored Altamira values to ≤ 1e-12 relative, not always bit for
   bit on another platform; fastai-41 is not reproducible across machines (known, documented in
   the benchmark audit); the platform tolerance is fixed in the pilot.

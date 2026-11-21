@@ -269,14 +269,19 @@ def local_metrics(dz, mo, ex):
     terr = np.abs(mo["dy"] - ex["dy"])
     tol = E["violation_tol"]
     viol = ((Dm < -tol) | (Dm > 1 + tol)).astype(float)
+    with np.errstate(invalid="ignore"):
+        excess = np.maximum(-Dm, 0.0) + np.maximum(Dm - 1.0, 0.0)
     mae_d, per_step, per_act = hier_mean(err, valid)
     mae_t, _, _ = hier_mean(terr, valid)
     vr, _, _ = hier_mean(viol, valid)
+    exm, _, _ = hier_mean(excess, valid)
     null = np.abs(ex["dy"]) < E["null_change_rel_tol"] * ex["T0"][None, None, :]
     vn = valid & null
     vnn = valid & ~null
     row = {"MAE_D": mae_d, "MAE_time": mae_t, "violation_rate": vr,
            "violation_rate_pooled": float(viol[valid].mean()) if valid.any() else np.nan,
+           "violation_excess_mean": exm,
+           "violation_excess_pooled": float(excess[valid].mean()) if valid.any() else np.nan,
            "valid_n": int(valid.sum()), "clipped_n": int(dz.clipped.sum()),
            "excluded_n": int((~valid).sum()), "switch_n": int((ex["switch"] & valid).sum()),
            "null_n": int(vn.sum()), "nonnull_n": int(vnn.sum()),
@@ -299,6 +304,7 @@ def local_metrics(dz, mo, ex):
                          "mean_D_model": float(Dm[a, s][v].mean()) if v.any() else np.nan,
                          "mean_D_exact": float(Dg[a, s][v].mean()) if v.any() else np.nan,
                          "violation_n": int(viol[a, s][v].sum()),
+                         "excess_mean": float(excess[a, s][v].mean()) if v.any() else np.nan,
                          "switch_n": int((ex["switch"][a, s] & v).sum()),
                          "null_n": int((null[a, s] & v).sum())})
     return row, pd.DataFrame(rows)

@@ -7,7 +7,7 @@ import traceback
 
 from . import config as cfg
 
-STAGES = ["prepare", "simulate", "fit", "structure", "explain", "decide", "aggregate", "config"]
+STAGES = ["prepare", "simulate", "fit", "structure", "explain", "decide", "resolution", "aggregate", "config"]
 DEFAULT_MODELS = {"fit": cfg.ALL_MODELS, "explain": ["exact"] + cfg.ALL_MODELS,
                   "decide": ["exact"] + cfg.FOCAL_MODELS}
 
@@ -78,7 +78,7 @@ def main(argv=None):
         return 0
     failures = 0
     for net in _networks(ctx, args):
-        units = [None] if args.stage in ("simulate", "structure") else _models(args)
+        units = [None] if args.stage in ("simulate", "structure", "resolution") else _models(args)
         for m in units:
             t0 = time.time()
             try:
@@ -97,6 +97,9 @@ def main(argv=None):
                 elif args.stage == "decide":
                     from . import decide
                     r = decide.run(ctx, net, m)
+                elif args.stage == "resolution":
+                    from . import resolution
+                    r = resolution.run(ctx, net)
                 state = "skipped (current)" if r is None else r.get("status", "ok")
                 print("%s %s %s: %s in %.1f s" % (args.stage, net, m or "", state, time.time() - t0), flush=True)
             except Exception:  # noqa: BLE001

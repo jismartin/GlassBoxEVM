@@ -22,7 +22,7 @@ DEVIATIONS = [
     "S1: partial dependence evaluated on a 500-row background drawn from sobol_sample (stage "
     "'sobol_sample', replicate 1), grid of 21 quantiles of the sobol sample, variance over all "
     "sobol_sample rows; background size to be fixed in the pilot.",
-    "Local violation rate uses the same three-level averaging as MAE_D; a pooled rate is also stored.",
+    "Local violation rate (tolerance 0.05) and mean excess magnitude use the same three-level averaging as MAE_D; pooled values are also stored.",
 ]
 
 
@@ -55,6 +55,7 @@ def collect(ctx):
         "decomposition": _collect(os.path.join(cd, "networks", "*", "structure", "decomposition.csv")),
         "local_metrics": _collect(os.path.join(cd, "networks", "*", "explain", "*", "local_metrics.csv")),
         "decisions": _collect(os.path.join(cd, "networks", "*", "decide", "*", "decisions.csv")),
+        "resolution": _collect(os.path.join(cd, "networks", "*", "resolution", "resolution.csv")),
         "sensitivity": _collect_tables(cd, "explain", "sensitivity"),
     }
     return res
@@ -75,7 +76,7 @@ def network_metrics(tabs):
     lm = tabs["local_metrics"]
     if not lm.empty:
         w = lm[lm["model_id"] != "exact"].pivot_table(index="network_id", columns="model_id",
-                                                     values=["MAE_D", "violation_rate", "PD_error_mean"],
+                                                     values=["MAE_D", "violation_rate", "violation_excess_mean", "PD_error_mean"],
                                                      aggfunc="first")
         w.columns = ["%s_%s" % (a, b) for a, b in w.columns]
         nm = nm.merge(w, left_on="network_id", right_index=True, how="left")

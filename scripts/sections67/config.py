@@ -116,11 +116,20 @@ STRUCTURE = {
 # ---------------------------------------------------------------- explanations (§6.1, §6.2)
 EXPLAIN = {
     "n_local": 500, "steps_sd": [-1.0, -0.5, 0.5, 1.0], "sd_ddof": 0,
-    "min_effective_fraction": 0.1, "violation_tol": 1e-6, "null_change_rel_tol": 1e-9,
+    "min_effective_fraction": 0.1, "violation_tol": 0.05, "null_change_rel_tol": 1e-9,
     "n_pd_background": 500, "pd_n_grid": 21, "pd_q_lo": 0.01, "pd_q_hi": 0.99,
     "pd_extrapolation": "linear (interp_lin of the exploratory code)",
     "n_sobol": 10000, "n_s1_background": 500, "n_perm_seeds": 3,
     "predict_chunk_rows": 4000,
+}
+
+# ---------------------------------------------------------------- resolution checks (§7.1)
+RESOLUTION = {
+    "network_rule": ("per PSPLIB set, the pilot network with C > 0 nearest the 50% quantile of C; "
+                     "plus the maximum-C illustrative network"),
+    "grids": [21, 41], "s1_backgrounds": [500, 2000],
+    "support_limits_grid": True, "models": ["EN-36", "EBM-24", "fastai-41"],
+    "independent_sample": "sobol_sample",
 }
 
 # ---------------------------------------------------------------- decision (§6.3)
@@ -145,7 +154,7 @@ CONFIG = {
     "seeds": SEEDS, "simulator": SIMULATOR, "cohorts": COHORTS,
     "hyperparameter_dir": HYPERPARAMETER_DIR, "models": MODELS,
     "focal_models": FOCAL_MODELS, "all_models": ALL_MODELS,
-    "structure": STRUCTURE, "explain": EXPLAIN, "decision": DECISION,
+    "structure": STRUCTURE, "explain": EXPLAIN, "resolution": RESOLUTION, "decision": DECISION,
     "inference": INFERENCE, "resources": RESOURCES,
 }
 
