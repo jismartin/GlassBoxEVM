@@ -1,9 +1,9 @@
 # Analysis protocol for the structural and explanation analyses (Sections 6–7)
 
 **Project:** GlassBoxEVM — interpretable and black-box surrogates of stochastic project duration.
-**Protocol version:** 1.0 (pre-pilot).
+**Protocol version:** 1.1 (frozen).
 **Date:** 21 November 2026.
-**Status:** not yet frozen. The freeze commit and date are recorded in §10 after the technical pilot and before any confirmatory network is analysed.
+**Status:** frozen after the technical pilot and before any confirmatory network was simulated. The frozen version is identified by the Git tag `sections67-protocol-v1.1` (§10).
 
 ## 1. Purpose and scope
 
@@ -96,7 +96,7 @@ is used to support the interpretation. L* is the error of the best population li
 
 An empirical estimator is used. On the 10,000 scenarios, g is regressed by least squares on the non-constant durations and L_emp = mean(linear residual²)/Var_emp(g) (ddof = 0). Partial-dependence curves are estimated and centred to give an additive approximation g_add; then I_int_emp = mean((g − g_add)²)/Var_emp(g) and Q_emp = L_emp − I_int_emp. Output files keep these names distinct from the population quantities. Q_emp may be slightly negative because of estimation error; it is neither truncated nor interpreted as negative curvature. I_int is estimated as a residual, not as 1 − ΣS1. The out-of-sample OLS RelMSE remains a separate diagnostic, because its finite-sample fit and denominator differ from L*.
 
-On five pilot networks, the additive approximation is evaluated on an independent simulation and Q_emp is compared with a direct estimate of single-activity curvature. If the agreement does not allow the signal to be interpreted, resolution is increased in the pilot or the decomposition is reported qualitatively. This check does not condition H1–H4.
+On five pilot networks, the additive approximation was evaluated on an independent simulation and Q_emp was compared with a direct estimate of single-activity curvature. A 41-point grid changed Q_emp by at most 1.3e-5 and the direct curvature estimate agreed with Q_emp within 2.2e-4, whereas evaluation on an independent sample changed L_emp, I_int_emp and Q_emp by up to 0.004 of Var(g). This sampling resolution, ±0.004 of Var(g), is declared for the decomposition, and smaller differences are not interpreted. This check does not condition H1–H4.
 
 The ratio Q_emp/L_emp is reported only when L_emp ≥ 1e-3 and the numerical resolution allows interpretation. Its association with the EN−EBM difference is analysed descriptively and is not a confirmatory hypothesis.
 
@@ -173,13 +173,13 @@ Perturbations are clipped to the theoretical support of the modifiable duration 
 
 The local effect is D_i = [f(x + delta_ef e_i) − f(x)] / delta_ef, computed for each model f and for g. The primary error is the mean of |D_model − D_exact|, averaged first over valid scenarios for each activity and perturbation, then over perturbations, then over activities, with equal weights at each level. Activities without valid perturbations are recorded. The validity mask depends only on the reference and the domain, never on model performance.
 
-Secondary measures are: the error in the duration change in time units; the proportion of D < −1e-6 or D > 1 + 1e-6; results separated for numerically null exact changes (|Delta g| < 1e-9 T) and non-null changes; and the frequency of critical-set changes. For negative perturbations, the sign of the duration change is distinguished from the response per unit, which is non-negative for g; a negative duration change is not counted as a violation when D is positive. A sample targeted at rare critical-set changes, if used, is reported separately.
+Secondary measures are: the error in the duration change in time units; the proportion of D < −0.05 or D > 1.05, and the mean excess of D outside [0, 1], max(−D, 0) + max(D − 1, 0), averaged as the primary error; results separated for numerically null exact changes (|Delta g| < 1e-9 T) and non-null changes; and the frequency of critical-set changes. For negative perturbations, the sign of the duration change is distinguished from the response per unit, which is non-negative for g; a negative duration change is not counted as a violation when D is positive. A sample targeted at rare critical-set changes, if used, is reported separately.
 
 ### 6.2 Global explanations (supporting measures)
 
 Partial-dependence (PD) curves of g and of each model are compared on a grid of 21 marginal quantiles between 1% and 99%, with the 500 test scenarios as common background. Curves are centred under the marginal distribution of each activity, and discrepancies are weighted by that distribution rather than uniformly over grid points. Fidelity is summarised by the integrated squared difference between centred curves, normalised by Var(g), with the curvature component shown separately. Activities whose exact curve is constant are reported separately and are not assigned an R².
 
-First-order Sobol indices S1 are estimated from the variance of the PD curve and total indices ST with the Jansen estimator using permuted columns. Both are evaluated on an independent scenario sample shared by g and all models (initial size 10,000 per network, fixed after the pilot). Each function's indices use that function's own variance. Background sizes, grid resolution and the treatment of the support extremes are validated in the pilot, using three permutation seeds and an independent simulation on five networks. Analytical references are computed for constructed linear functions, for which S1_i = ST_i = b_i² Var(X_i)/Var(g), and zero for activities without effect. Observed C = 0 is not by itself taken as proof of linearity. The numerical resolution is reported, and differences below it are not interpreted.
+First-order Sobol indices S1 are estimated from the variance of the PD curve and total indices ST with the Jansen estimator using permuted columns. Both are evaluated on an independent sample of 10,000 scenarios per network shared by g and all models; S1 uses a 500-row background drawn from that sample. Each function's indices use that function's own variance. In the pilot, three permutation seeds, 21- and 41-point grids and 500- and 2,000-row backgrounds changed individual indices of g by at most 0.005 (95th percentile 0.001), which is the declared resolution of S1 and ST. PD curves use the 21-point grid with linear extrapolation beyond the extreme nodes; a 41-point grid changed the PD error by less than 15% and adding the support limits to the grid increased it, mainly for EBM, without changing the ordering of the models in any of the five pilot networks checked. Analytical references are computed for constructed linear functions, for which S1_i = ST_i = b_i² Var(X_i)/Var(g), and zero for activities without effect. Observed C = 0 is not by itself taken as proof of linearity. The numerical resolution is reported, and differences below it are not interpreted.
 
 The number of model terms and pairwise terms is reported. Agreement with the schedule-risk indices CI, SI, CRI and SSI is complementary evidence: those indices are not equated with model-internal importances, and EN coefficients are not summed to form activity sensitivities. Rankings are compared through a common per-activity measure, the variance of the activity's PD curve, with a fixed tie-breaking rule and number of eligible activities; cases with constant indices or undefined correlations are reported separately. Refit stability on 30 exploratory networks, with two resamples per network, is a secondary diagnostic reported in an appendix.
 
@@ -199,7 +199,7 @@ The value of k and the total expected reduction in the capped durations are repo
 
 The pilot uses 24 exploratory networks, six per subset, chosen to span the range of C. Refits use the stored benchmark scenarios and the original partition, so that a comparison with the benchmark RelMSE isolates the effects of refitting and platform; the newly generated samples (decision, Sobol) are not part of that comparison. The illustrative networks of §8 are refitted if they are not among the 24.
 
-The pilot verifies: model persistence and reload; reproduction of the benchmark errors on the computing cluster; seeds; memory and time requirements; signs of paired differences; exact local effects within [0, 1]; precision of the Sobol indices and of Q/I_int (21- versus 41-point grids, different background sizes); and the availability of valid interventions. Reproduction discrepancies are investigated and documented, and platform tolerances are fixed, before the confirmatory run. Computing resources for the confirmatory run are sized from the pilot timings.
+The pilot verifies: model persistence and reload; reproduction of the benchmark errors on the computing cluster; seeds; memory and time requirements; signs of paired differences; exact local effects within [0, 1]; precision of the Sobol indices and of Q/I_int (21- versus 41-point grids, different background sizes); and the availability of valid interventions. Reproduction discrepancies are investigated and documented, and platform tolerances are fixed, before the confirmatory run. On the computing cluster, refits are expected to reproduce the benchmark exactly; any difference is reported per network, and RelMSE differences below 1e-5 in absolute value are not investigated further. Computing resources for the confirmatory run are sized from the pilot timings. The pilot and its results are reported in `protocols/pilot_report.md`.
 
 If sufficient precision is not achieved for Q/I_int or the higher-order decomposition, those analyses are reported as exploratory with their limitations, or omitted. This does not affect C, OLS, H1–H4 or the decision test.
 
@@ -247,6 +247,7 @@ The 500 local-effect scenarios and the PD background are drawn without replaceme
 - `structure`: exact function check, C, CI, N_eff, topology, OLS deviation and, when enabled, Q/I_int.
 - `explain`: local effects, PD curves and Sobol indices; stability refits as separate tasks.
 - `decide`: policy selection on the selection sample and exact evaluation on the evaluation sample.
+- `resolution`: the numerical resolution checks of §7.1 (pilot only).
 - `aggregate`: complete-pair checks, per-network metrics, bootstrap inference and Holm adjustment, with cohorts kept separate.
 
 Tasks are resumable per network, model and stage. An existing output is reused only if the hashes of inputs, configuration and code match. Writes are atomic (temporary file and rename), and earlier outputs are never silently overwritten. Fitting tasks use one core, with BLAS and OpenMP threads limited to one. After transfer from the cluster and SHA-256 verification, the original outputs are retained until a durable archive of models, data and metadata has been confirmed. Large files are not stored in Git; the repository holds the code, configuration and manifests that identify the archive.
@@ -291,6 +292,7 @@ Detail tables are stored as gzip-compressed CSV or Parquet. Scenario identifiers
 | Version | Date | Commit | Description |
 | --- | --- | --- | --- |
 | 1.0 | 21 November 2026 | ca7fbdc | Pre-pilot version. |
+| 1.1 | 21 November 2026 | tag `sections67-protocol-v1.1` | Frozen version: pre-freeze amendment after the technical pilot (§10.3); pipeline code at commit 9ec86e3. |
 
 The frozen version, with the technical parameters fixed in the pilot, is recorded here before any confirmatory network is analysed. Any later change is listed with its date, the reason, and whether confirmatory results had been seen at the time. No confirmatory hypothesis is added after the confirmatory networks are examined.
 
@@ -298,12 +300,12 @@ The frozen version, with the technical parameters fixed in the pilot, is recorde
 
 | Item | Status |
 | --- | --- |
-| Freeze date and commit | Pending (after the pilot) |
+| Freeze date and commit | 21 November 2026, tag `sections67-protocol-v1.1` |
 | External archive of the frozen version | Pending |
 | Seeds and analysis samples per network | Recorded by the pipeline |
 | Configurations and software environment | Recorded by the pipeline |
-| Q/I_int and Sobol resolution parameters | To be fixed in the pilot |
-| Platform tolerances | To be fixed in the pilot |
+| Q/I_int and Sobol resolution parameters | Decomposition ±0.004 of Var(g); S1 and ST ±0.005 (§4.2, §6.2) |
+| Platform tolerances | Exact reproduction expected; RelMSE differences < 1e-5 not investigated (§7.1) |
 | Benchmark reference release | `v1.0-benchmark`, https://doi.org/10.5281/zenodo.24425847 |
 | Confirmatory sample | Drawn with commit ca7fbdc before any simulation: `protocols/confirmatory_network_manifest.csv` (320 networks, 80 per set, no exclusions) and `protocols/confirmatory_candidate_permutation.csv` (full permutation with substitutes) |
 | Start of the confirmatory analysis | Not started |
@@ -311,3 +313,5 @@ The frozen version, with the technical parameters fixed in the pilot, is recorde
 ### 10.3 Deviations and incidents
 
 **21 November 2026 — prior exposure of one confirmatory network.** During testing of the simulation pipeline, network j3042_8 (J30; first in the J30 permutation and part of the sample) was simulated, and the `structure` stage and the OLS, EN-36-main and EBM-24-noint fits were run. The following values were observed: C = 0, a single critical set, N_eff = 1 and OLS RelMSE ≈ 2.4e-28. No EN-36, EBM-24, fastai-41 or EN-36-centred fits, local effects or decisions were computed, so no input to H1–H4 was seen. The outputs were deleted. The network remains in the sample, because excluding or replacing it would depend on an observed result. Subsequent pipeline tests use networks outside the confirmatory sample. Because simulation is seeded (§9.2), the confirmatory run regenerates the same scenarios for this network.
+
+**21 November 2026 — pre-freeze amendment after the technical pilot (version 1.1).** The pilot (27 exploratory networks; `protocols/pilot_report.md`) led to four technical decisions: (1) the platform tolerance of §7.1; (2) the Sobol settings of §6.2, kept as specified, with a declared resolution of ±0.005; (3) the resolution checks of §4.2 and §6.2, implemented as the `resolution` stage and run on five pilot networks, giving a declared resolution of ±0.004 of Var(g) for the decomposition; (4) the tolerance of the secondary violation measure of §6.1, changed from 1e-6 to 0.05, with the mean excess added, because at 1e-6 it counted numerical noise in 34–47% of perturbations. The pilot was then rerun in full with the amended code (commit 9ec86e3) and reproduced the first run exactly. The research questions, hypotheses H1–H4, their statistics, decision criteria, the Holm family and the confirmatory sample are unchanged. Pilot values of the hypothesis statistics were computed only on exploratory networks and did not motivate any of these changes.
