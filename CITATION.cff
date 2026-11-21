@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this software or data, please cite it using these metadata."
+title: "GlassBoxEVM: a benchmark of interpretable and black-box surrogates of stochastic project duration"
+type: software
+authors:
+  - family-names: "Santos"
+    given-names: "José Ignacio"
+    orcid: "https://orcid.org/0000-0002-6653-043X"
+  - family-names: "Pereda"
+    given-names: "María"
+    orcid: "https://orcid.org/0000-0002-6151-1176"
+  - family-names: "Ahedo"
+    given-names: "Virginia"
+    orcid: "https://orcid.org/0000-0002-9812-388X"
+  - family-names: "Galán"
+    given-names: "José Manuel"
+    orcid: "https://orcid.org/0000-0003-3360-7602"
+repository-code: "https://github.com/jismartin/GlassBoxEVM"
+license: MIT
+version: "1.0-benchmark"
+keywords:
+  - project scheduling
+  - earned value management
+  - Monte Carlo simulation
+  - surrogate models
+  - interpretable machine learning
+  - explainable boosting machine
+  - PSPLIB
+abstract: >-
+  Benchmark of six regression families (Explainable Boosting Machine, Elastic Net,
+  Random Forest, XGBoost, Support Vector Regression and a fastai neural network),
+  with ordinary least squares as a linear reference, used as per-project surrogates of
+  stochastic project duration. Activity durations of 400 PSPLIB projects are simulated
+  by Monte Carlo from an earned value control point; hyperparameters are selected on
+  40 projects and the retained configurations are evaluated on 360 held-out projects.
+  The repository contains the project instances, simulation outputs, selection and
+  evaluation results, and the statistical analyses.

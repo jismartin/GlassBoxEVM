@@ -1,0 +1,2 @@
+analysis,n_projects,n_models,friedman_statistic,friedman_pvalue,friedman_log10_pvalue,best_model,best_group,posthoc,p_adjust,n_pairs,alpha,scikit_posthocs_version
+seven-model extension (six families + OLS); not the original six-family test,360,7,1397.273809523811,9.431129734632538e-299,-298.02543628094986,en-36,en-36,scikit_posthocs.posthoc_conover_friedman,bonferroni,21,0.05,0.17.1

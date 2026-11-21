@@ -87,9 +87,13 @@ Parameter | Type | Sampling scale | Nominal range | Description
 `layer2` | Integer | Linear | 50 to 250 | Number of neurons in the second hidden layer.
 `wd` | Float | Log-uniform | 0.0001 to 0.01 | Weight decay regularization.
 
-The notebook comments indicate that the number of epochs is set to 100 and controlled through early stopping.
+Training settings that are not sampled: two hidden layers whose widths are rounded down to multiples of 5, batch size 64, the one-cycle learning-rate policy (`fit_one_cycle`) for at most 100 epochs, early stopping on the validation loss with patience 10, and a validation split of 10% of the training scenarios. Activity durations that are constant in the training data (activities completed at the control point) are removed before training, because fastai's normalisation maps them to non-zero test values.
 
 Generated file: [`lhs_fastai_parameters.csv`](model_selection/hyperparameters/lhs_fastai_parameters.csv)
+
+## Retained configurations
+
+The configurations retained in [`model_selection.ipynb`](model_selection.ipynb) and used in the final evaluation are EBM 24, Elastic Net 36, Random Forest 14, XGBoost 39, SVR 0 and FastAI 41 (row indices of the LHS files, starting at 0). Their values are listed in [`model_selection/selected_models_results.csv`](model_selection/selected_models_results.csv).
 
 ## Generated LHS Files
 

@@ -27,6 +27,7 @@ spacy==3.8.7
 pyyaml          # version not recorded
 requests        # version not recorded
 
-# Analysis notebooks only (run locally; not part of mlenv, versions not recorded)
+# Analysis notebooks and the seven-model extension only (run locally; not part of mlenv, versions not recorded)
 seaborn
 scikit-posthocs
+mpmath

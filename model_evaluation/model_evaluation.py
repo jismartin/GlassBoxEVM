@@ -2,11 +2,9 @@
 # Script for Altamira
 # Evaluate one fixed hyperparameterization of a model on one evaluation project.
 #
-# All models, FastAI included, are run on Altamira through SLURM array jobs
-# (model_evaluation/jobs/). An earlier FastAI run (LHS 41) was executed locally
-# because its RelMSE differed between the cluster and the local machine. To audit
-# that, each run prints its execution environment and the SHA-256 of the input
-# files to stdout (SLURM .out log); the result CSV format is unchanged.
+# All models, FastAI included, are run on Altamira through single-core SLURM array
+# jobs (model_evaluation/jobs/). Each run prints its execution environment and the
+# SHA-256 of the input files to stdout (SLURM .out log).
 
 
 import argparse
