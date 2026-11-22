@@ -48,6 +48,8 @@ The search space of each family is described in [`hyperparameters.md`](hyperpara
 - [`model_selection/`](model_selection/): LHS hyperparameter files, the selection script, SLURM job scripts and per-project selection results.
 - [`model_evaluation/`](model_evaluation/): the evaluation script, SLURM job scripts and their error/retry logs, per-project results and analysis tables.
 - [`scripts/tools.py`](scripts/tools.py): utilities to read PSPLIB files, compute topological indicators, evaluate the EVM control point and run the Monte Carlo simulation.
+- [`results67/`](results67/): Sections 6–7 confirmatory aggregates (320 networks) and the pilot outputs used for Figure 6; the confirmatory report is [`protocols/confirmatory_results.md`](protocols/confirmatory_results.md).
+- [`paper_out/`](paper_out/): paper Tables 4–8 and Figures 2–7, written by [`scripts/paper_outputs.py`](scripts/paper_outputs.py).
 - [`workflow_notebooks.md`](workflow_notebooks.md): the notebooks and scripts in execution order and what each one does.
 - [`hyperparameters.md`](hyperparameters.md): hyperparameters explored for each model family.
 

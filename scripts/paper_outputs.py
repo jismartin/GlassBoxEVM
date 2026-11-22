@@ -1,7 +1,7 @@
 """Tables 4-8 and Figures 2-7 of the paper (Sections 5-7).
 
 Usage (from the repository root):
-    python scripts/paper_outputs.py --aggregate <confirmatory>/aggregate --pilot <pilot> --out paper_out
+    python scripts/paper_outputs.py
 
 Inputs
 ------
@@ -9,8 +9,10 @@ Inputs
 --aggregate      Confirmatory aggregate directory produced by
                  `python -m scripts.sections67 aggregate` (network_metrics.csv,
                  local_metrics.csv, decisions.csv, inference.csv, h2_influence.csv).
---pilot          Pilot output directory at commit 9ec86e3 (contains networks/<id>/explain/<model>/
-                 pd_curves.csv.gz and aggregate/network_metrics.csv); used for Figure 6 only.
+                 Default: <repo>/results67/confirmatory/aggregate.
+--pilot          Pilot outputs at commit 9ec86e3 (networks/<id>/explain/<model>/pd_curves.csv.gz
+                 and aggregate/network_metrics.csv); used for Figure 6 only.
+                 Default: <repo>/results67/pilot/figure6_inputs.
 --structure360   Exploratory structure measures for the 360 benchmark networks; used for Figure 4
                  and Table 6 (exploratory column). Default:
                  <repo>/model_evaluation/analysis/structure_measures_360.csv.
@@ -448,11 +450,13 @@ def section7(agg, pilot, nm, inf, out):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--repo', default='.')
-    ap.add_argument('--aggregate', required=True)
-    ap.add_argument('--pilot', required=True)
+    ap.add_argument('--aggregate', default=None)
+    ap.add_argument('--pilot', default=None)
     ap.add_argument('--structure360', default=None)
     ap.add_argument('--out', default='paper_out')
     a = ap.parse_args()
+    a.aggregate = a.aggregate or os.path.join(a.repo, 'results67/confirmatory/aggregate')
+    a.pilot = a.pilot or os.path.join(a.repo, 'results67/pilot/figure6_inputs')
     os.makedirs(a.out, exist_ok=True)
     style()
     section5(a.repo, a.out)
