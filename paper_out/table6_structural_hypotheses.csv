@@ -1,0 +1,6 @@
+Hypothesis,Quantity,Estimate,95% interval,Subset slopes J30/J60/J90/J120,Exploratory 360 slope,Adjusted p,Decision
+"H1 (primary, IUT)",Slope of RelMSE(EN − fastai) on C,0.0700,"[0.0602, 0.0804]",0.0892 / 0.0662 / 0.0586 / 0.0700,0.0711,—,Confirmed (both lower bounds > 0)
+"H1 (primary, IUT)",Slope of RelMSE(EBM − fastai) on C,0.0741,"[0.0569, 0.0927]",0.0785 / 0.0661 / 0.0609 / 0.0892,0.0783,—,Confirmed (both lower bounds > 0)
+H2 (Holm family),"β_J30 − β_J120, RelMSE(EN − EBM) on C",0.0298,"[-0.0005, 0.0623]",0.0107 / 0.0001 / -0.0023 / -0.0192,0.0614 (contrast),0.060,Not confirmed
+H2 sensitivity,Theil–Sen J30 − J120 (separate fits),0.0342,"[0.0178, 0.0508]",—,—,—,Descriptive; same sign
+H2 influence,Cook's D > 4/n; max leave-one-out change in contrast,22 networks; 0.0077 (j3013_8),—,—,—,—,Max change ≈ 26% of estimate

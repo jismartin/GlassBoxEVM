@@ -1,0 +1,9 @@
+Model,Networks,MAE_D mean (all),MAE_D median,"MAE_D mean, C = 0","MAE_D mean, C > 0","Violation rate (tol 0.05), mean","Violation excess, mean",Mean PD-curve error,Role
+EN-36,320,0.0306,0.0065,0.0003,0.0459,0.0362,0.00728,7.01e-05,tested
+EBM-24,320,0.0651,0.0318,0.0234,0.0860,0.0885,0.02607,1.97e-05,tested
+fastai-41,320,0.1192,0.1020,0.1115,0.1231,0.1954,0.06385,6.71e-05,reference
+OLS,320,0.0341,0.0049,0.0000,0.0512,0.0122,0.00384,7.48e-05,reference
+EN-36-main,320,0.0338,0.0045,0.0001,0.0507,0.0118,0.00367,7.47e-05,ablation
+EN-36-centred,320,0.0634,0.0206,0.0001,0.0952,0.1028,0.02735,7.13e-05,ablation
+EBM-24-noint,320,0.0713,0.0375,0.0235,0.0953,0.0824,0.02461,2.80e-05,ablation
+H3: EN-36 − EBM-24,320,"-0.0344 [-0.0389, -0.0304]",-0.0238,,,,,,Holm p = 0.0003; EN lower in 320/320; confirmed
