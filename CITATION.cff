@@ -17,7 +17,7 @@ authors:
     orcid: "https://orcid.org/0000-0003-3360-7602"
 repository-code: "https://github.com/jismartin/GlassBoxEVM"
 license: MIT
-version: "1.0-benchmark"
+version: "2.0-sections67"
 keywords:
   - project scheduling
   - earned value management
@@ -26,6 +26,8 @@ keywords:
   - interpretable machine learning
   - explainable boosting machine
   - PSPLIB
+  - critical path
+  - explanation fidelity
 abstract: >-
   Benchmark of six regression families (Explainable Boosting Machine, Elastic Net,
   Random Forest, XGBoost, Support Vector Regression and a fastai neural network),
@@ -34,4 +36,14 @@ abstract: >-
   by Monte Carlo from an earned value control point; hyperparameters are selected on
   40 projects and the retained configurations are evaluated on 360 held-out projects.
   The repository contains the project instances, simulation outputs, selection and
-  evaluation results, and the statistical analyses.
+  evaluation results, and the statistical analyses. Version 2.0 adds a confirmatory study on
+  320 new PSPLIB networks under a frozen protocol: critical-set competition as a structural
+  explanation of surrogate accuracy, fidelity of local explanations, and a simulated
+  intervention-decision test.
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.24425847"
+    description: "Benchmark release v1.0-benchmark"
+  - type: doi
+    value: "10.5281/zenodo.24439968"
+    description: "Sections 6-7 cluster outputs (dataset)"

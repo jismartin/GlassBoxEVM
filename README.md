@@ -1,10 +1,13 @@
 # GlassBoxEVM
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24425847.svg)](https://doi.org/10.5281/zenodo.24425847)
+[![Data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24439968.svg)](https://doi.org/10.5281/zenodo.24439968)
 
 GlassBoxEVM is a benchmark of interpretable and black-box regression models used as surrogates of stochastic project duration. For each PSPLIB project, the stochastic activity durations from an Earned Value Management (EVM) control point are simulated by Monte Carlo, and one model per project is trained to map the simulated activity durations to the project makespan. The benchmark compares the accuracy and the computational cost of six model families, with particular attention to the interpretable Explainable Boosting Machine (EBM) and Elastic Net (EN).
 
 The models are surrogates of a known simulation function (the makespan of a precedence network without resource constraints); they are not forecasts validated on real projects.
+
+A second part (Sections 6–7 of the paper) asks when the interpretable models lose accuracy against the neural network, using the competition between critical sets as a structural explanation, and whether their explanations are faithful and useful for choosing interventions. It was tested on 320 new PSPLIB networks under a frozen protocol ([`protocols/sections_6_7.md`](protocols/sections_6_7.md)); the results are reported in [`protocols/confirmatory_results.md`](protocols/confirmatory_results.md).
 
 The repository contains:
 
@@ -12,7 +15,8 @@ The repository contains:
 - the Monte Carlo simulation outputs;
 - the hyperparameter search (Latin Hypercube Sampling) and its results;
 - the final evaluation results on held-out projects;
-- the statistical and topology-related analyses of model performance.
+- the statistical and topology-related analyses of model performance;
+- the Sections 6–7 protocol, pipeline code, network manifests, confirmatory aggregates and the paper tables and figures.
 
 ## Benchmarked models
 
@@ -95,7 +99,7 @@ The code is released under the MIT licence (see [`LICENSE`](LICENSE)). The simul
 
 ## Citation
 
-Please cite this repository using the metadata in [`CITATION.cff`](CITATION.cff). The benchmark release `v1.0-benchmark` is archived on Zenodo: [https://doi.org/10.5281/zenodo.24425847](https://doi.org/10.5281/zenodo.24425847).
+Please cite this repository using the metadata in [`CITATION.cff`](CITATION.cff). The benchmark release `v1.0-benchmark` is archived on Zenodo: [https://doi.org/10.5281/zenodo.24425847](https://doi.org/10.5281/zenodo.24425847). The complete cluster outputs of the Sections 6–7 study (fitted models, predictions, simulated scenarios, explanations and decisions, with a SHA-256 manifest) are archived as a separate dataset: [https://doi.org/10.5281/zenodo.24439968](https://doi.org/10.5281/zenodo.24439968).
 
 ## References
 

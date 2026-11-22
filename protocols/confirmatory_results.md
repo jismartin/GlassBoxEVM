@@ -7,10 +7,11 @@
 | Protocol | `protocols/sections_6_7.md`, version 1.1 |
 | Frozen version | Git tag `sections67-protocol-v1.1` (annotated tag object `c150c54`) on commit `a8db487`; tag created 2026-11-21 23:12 UTC (Git timestamp, set by the authors' machine) |
 | Public availability of the frozen version | The cluster fetched the tag from the public GitHub repository at 2026-11-21 23:14:00 UTC (cluster file timestamp of the fetch) |
-| External archive of the frozen version | None before the campaign; the frozen protocol is archived with the release of the Sections 6–7 work |
+| External archive of the frozen version | None before the campaign; the frozen protocol is archived with the release of the Sections 6–7 work (`v2.0-sections67`) |
 | Pipeline code | `scripts/sections67` at commit `a8db487` (unchanged since `9ec86e3`, which produced the final pilot); configuration hash `e5a034d7…` |
 | Confirmatory sample | `protocols/confirmatory_network_manifest.csv` (320 networks, 80 per set), drawn with commit `ca7fbdc` and recorded in commit `601cf24` before any confirmatory network was simulated; regenerated on the cluster with the frozen code and verified identical |
 | Benchmark reference | `v1.0-benchmark`, https://doi.org/10.5281/zenodo.24425847 |
+| Cluster outputs | Zenodo dataset, https://doi.org/10.5281/zenodo.24439968 (all files as written on the cluster, with a SHA-256 manifest) |
 | Execution | Altamira, one single-core SLURM task per network, submitted 2026-11-21 23:17:46 UTC (SLURM accounting); aggregation finished 2026-11-22 06:18 UTC |
 
 The freeze is therefore an internal, version-controlled freeze whose public availability before the campaign is documented by the cluster's own records; it is not an external preregistration.
